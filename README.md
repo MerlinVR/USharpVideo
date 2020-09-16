@@ -8,6 +8,7 @@ A basic video player made for VRChat using Udon and UdonSharp. Does not yet supp
 - Video seeking and duration info
 - Pause/Play
 - Shows master and the last person to play a video
+- Default playlist that plays when entering the world
 
 ## Installation
 1. Install the [latest](https://github.com/MerlinVR/USharpVideo/releases/latest) release
