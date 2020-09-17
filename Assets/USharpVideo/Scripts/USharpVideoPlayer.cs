@@ -131,6 +131,17 @@ namespace UdonSharp.Video
             screenRenderer.sharedMaterial.SetInt("_IsAVProInput", 0);
         }
 
+        void TakeOwnership()
+        {
+            if (Networking.IsMaster || !_masterOnly)
+            {
+                if (!Networking.IsOwner(gameObject))
+                {
+                    Networking.SetOwner(Networking.LocalPlayer, gameObject);
+                }
+            }
+        }
+
         void StartVideoLoad(VRCUrl url)
         {
             Debug.Log("[USharpVideo] Started video load");
@@ -223,6 +234,7 @@ namespace UdonSharp.Video
             masterUnlockedIcon.SetActive(!_masterOnly);
         }
 
+        // Pauses videos and stops streams
         public void TriggerPauseButton()
         {
             if (!Networking.IsOwner(gameObject))
@@ -230,13 +242,31 @@ namespace UdonSharp.Video
 
             _ownerPaused = !_ownerPaused;
 
-            if (_ownerPaused)
+            if (currentPlayerMode == PLAYER_MODE_VIDEO ||
+                currentPlayerMode == PLAYER_MODE_KARAOKE)
             {
-                _currentPlayer.Pause();
-                _locallyPaused = true;
+                if (_ownerPaused)
+                {
+                    _currentPlayer.Pause();
+                    _locallyPaused = true;
+                }
+                else
+                    _currentPlayer.Play();
             }
             else
-                _currentPlayer.Play();
+            {
+                if (_ownerPaused)
+                {
+                    _currentPlayer.Pause();
+                    _locallyPaused = true;
+                }
+                else
+                {
+                    _currentPlayer.Play();
+                    _currentPlayer.SetTime(float.MaxValue);
+                }
+
+            }
 
             playIcon.SetActive(_ownerPaused);
             pauseIcon.SetActive(!_ownerPaused);
@@ -390,14 +420,36 @@ namespace UdonSharp.Video
             }
         }
 
-        public bool HasVideoSyncMode() => currentPlayerMode == PLAYER_MODE_VIDEO;
-        public bool HasStreamSyncMode() => currentPlayerMode == PLAYER_MODE_STREAM;
+        public void SetVideoSyncMode()
+        {
+            if (_masterOnly && !Networking.IsMaster)
+                return;
+
+            TakeOwnership();
+
+            currentPlayerMode = PLAYER_MODE_VIDEO;
+
+            ChangePlayerMode();
+        }
+
+        public void SetStreamSyncMode()
+        {
+            if (_masterOnly && !Networking.IsMaster)
+                return;
+
+            TakeOwnership();
+
+            currentPlayerMode = PLAYER_MODE_STREAM;
+
+            ChangePlayerMode();
+        }
 
         void ChangePlayerMode()
         {
             if (currentPlayerMode == _localPlayerMode)
                 return;
-            
+
+            _nextPlaylistIndex = -1;
             _currentPlayer.Stop();
             _locallyPaused = _ownerPaused = false;
 
@@ -449,6 +501,9 @@ namespace UdonSharp.Video
             {
                 Debug.Log("[USharpVideo] Play");
                 _currentPlayer.Play();
+                if (currentPlayerMode == PLAYER_MODE_STREAM)
+                    _currentPlayer.SetTime(float.MaxValue);
+
                 _locallyPaused = false;
             }
 
@@ -531,8 +586,8 @@ namespace UdonSharp.Video
             }
             else // Stream player
             {
-                if (!string.IsNullOrEmpty(_statusStr))
-                    SetStatusText("");
+                //if (!string.IsNullOrEmpty(_statusStr))
+                    SetStatusText(currentTime.ToString());
 
                 screenRenderer.sharedMaterial.SetTexture("_EmissionMap", streamRTSource.sharedMaterial.GetTexture("_MainTex"));
             }
@@ -545,7 +600,12 @@ namespace UdonSharp.Video
                     _videoStartNetworkTime = (float)Networking.GetServerTimeInSeconds() - currentTime;
                 }
 
-                _currentPlayer.Pause();
+                if (currentPlayerMode == PLAYER_MODE_VIDEO || 
+                    currentPlayerMode == PLAYER_MODE_KARAOKE)
+                    _currentPlayer.Pause();
+                else
+                    _currentPlayer.Pause();
+
                 _locallyPaused = true;
             }
 

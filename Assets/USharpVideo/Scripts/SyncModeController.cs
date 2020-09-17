@@ -43,20 +43,12 @@ namespace UdonSharp.Video
 
         public void ClickVideoToggle()
         {
-            if (!Networking.IsOwner(videoPlayer.gameObject) ||
-                videoPlayer.HasVideoSyncMode())
-                return;
-
-            SetVideoVisual();
+            videoPlayer.SetVideoSyncMode();
         }
 
         public void ClickStreamToggle()
         {
-            if (!Networking.IsOwner(videoPlayer.gameObject) ||
-                videoPlayer.HasStreamSyncMode())
-                return;
-
-            SetStreamVisual();
+            videoPlayer.SetStreamSyncMode();
         }
     }
 }
