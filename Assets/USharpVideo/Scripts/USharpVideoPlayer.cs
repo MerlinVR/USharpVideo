@@ -536,8 +536,8 @@ namespace UdonSharp.Video
             _deserializeCounter = 0;
         }
 
-        Color redGraphicColor = new Color(0.632f, 0.19f, 0.19f);
-        Color whiteGraphicColor = new Color(0.9433f, 0.9433f, 0.9433f);
+        readonly Color redGraphicColor = new Color(0.632f, 0.19f, 0.19f);
+        readonly Color whiteGraphicColor = new Color(0.9433f, 0.9433f, 0.9433f);
 
         private void Update()
         {
