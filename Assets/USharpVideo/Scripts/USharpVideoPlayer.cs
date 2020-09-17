@@ -133,6 +133,7 @@ namespace UdonSharp.Video
 
         void StartVideoLoad(VRCUrl url)
         {
+            Debug.Log("[USharpVideo] Started video load");
             _currentPlayer.LoadURL(url);
             _statusStr = "Loading video...";
             SetStatusText(_statusStr);
@@ -382,6 +383,7 @@ namespace UdonSharp.Video
                     }
                     else
                     {
+                        Debug.Log("[USharpVideo] Retrying load");
                         _currentPlayer.LoadURL(_syncedURL);
                     }
                 }
@@ -396,7 +398,8 @@ namespace UdonSharp.Video
             if (currentPlayerMode == _localPlayerMode)
                 return;
             
-            StopVideo();
+            _currentPlayer.Stop();
+            _locallyPaused = _ownerPaused = false;
 
             Material screenMaterial = screenRenderer.sharedMaterial;
 
@@ -444,17 +447,10 @@ namespace UdonSharp.Video
 
             if (!_ownerPaused && _locallyPaused)
             {
+                Debug.Log("[USharpVideo] Play");
                 _currentPlayer.Play();
                 _locallyPaused = false;
             }
-            else
-            {
-                _currentPlayer.Pause();
-                _locallyPaused = true;
-            }
-
-            //if (_syncedURL != null)
-            //    Debug.Log("[USharpVideo] Received URL " + _syncedURL);
 
             if (_videoNumber == _loadedVideoNumber)
                 return;
@@ -508,12 +504,12 @@ namespace UdonSharp.Video
             if (_localPlayerMode != currentPlayerMode)
                 ChangePlayerMode();
 
-            if (_localPlayerMode == PLAYER_MODE_STREAM)
-                screenRenderer.sharedMaterial.SetTexture("_EmissionMap", streamRTSource.sharedMaterial.GetTexture("_MainTex"));
+            float currentTime = _currentPlayer.GetTime();
 
-            if (currentPlayerMode == PLAYER_MODE_VIDEO)
+            bool isVideoPlayMode = currentPlayerMode == PLAYER_MODE_VIDEO;
+
+            if (isVideoPlayMode)
             {
-                float currentTime = _currentPlayer.GetTime();
                 float duration = _currentPlayer.GetDuration();
                 string totalTimeStr = System.TimeSpan.FromSeconds(duration).ToString(@"hh\:mm\:ss");
 
@@ -532,22 +528,27 @@ namespace UdonSharp.Video
 
                     videoProgressSlider.value = Mathf.Clamp01(currentTime / (duration > 0f ? duration : 1f));
                 }
-
-                // Keep the target time the same while paused
-                if (_ownerPaused)
-                {
-                    _videoStartNetworkTime = (float)Networking.GetServerTimeInSeconds() - currentTime;
-
-                    _currentPlayer.Pause();
-                    _locallyPaused = true;
-                }
             }
             else // Stream player
             {
                 if (!string.IsNullOrEmpty(_statusStr))
                     SetStatusText("");
+
+                screenRenderer.sharedMaterial.SetTexture("_EmissionMap", streamRTSource.sharedMaterial.GetTexture("_MainTex"));
             }
-            
+
+            if (_ownerPaused)
+            {
+                if (isVideoPlayMode)
+                {
+                    // Keep the target time the same while paused
+                    _videoStartNetworkTime = (float)Networking.GetServerTimeInSeconds() - currentTime;
+                }
+
+                _currentPlayer.Pause();
+                _locallyPaused = true;
+            }
+
             UpdateVideoLoad();
 
             if (isOwner || !_waitForSync)
