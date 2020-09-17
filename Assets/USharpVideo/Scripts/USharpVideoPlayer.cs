@@ -54,6 +54,7 @@ namespace UdonSharp.Video
         public Text statusTextDropShadow;
         public Slider videoProgressSlider;
         public Graphic lockGraphic;
+        public SyncModeController syncModeController;
 
         // Info panel elements
         public Text masterTextField;
@@ -99,14 +100,13 @@ namespace UdonSharp.Video
         float _currentLoadingTime = 0f;
         int _currentRetryCount = 0;
 
-        const byte PLAYER_MODE_VIDEO = 0;
-        const byte PLAYER_MODE_STREAM = 1;
-        const byte PLAYER_MODE_KARAOKE = 2; // Todo
-        //const byte PLAYER_MODE_NONE = 255;
+        const int PLAYER_MODE_VIDEO = 0;
+        const int PLAYER_MODE_STREAM = 1;
+        const int PLAYER_MODE_KARAOKE = 2; // Todo
 
-        [UdonSynced, System.NonSerialized]
-        public byte currentPlayerMode = PLAYER_MODE_VIDEO;
-        byte _localPlayerMode = PLAYER_MODE_VIDEO;
+        [UdonSynced, System.NonSerialized] // I'd love to use byte, sbyte, or even short for these, but UdonSync is broken and puts Int32's into these regardless of the type
+        public int currentPlayerMode = PLAYER_MODE_VIDEO;
+        int _localPlayerMode = PLAYER_MODE_VIDEO;
 
         private void Start()
         {
@@ -395,9 +395,8 @@ namespace UdonSharp.Video
         {
             if (currentPlayerMode == _localPlayerMode)
                 return;
-
-            BaseVRCVideoPlayer lastVideoPlayer = _currentPlayer;
-            float lastPlayTime = lastVideoPlayer.GetTime();
+            
+            StopVideo();
 
             Material screenMaterial = screenRenderer.sharedMaterial;
 
@@ -407,19 +406,17 @@ namespace UdonSharp.Video
                     _currentPlayer = unityVideoPlayer;
                     screenMaterial.SetTexture("_EmissionMap", _videoRenderTex);
                     screenMaterial.SetInt("_IsAVProInput", 0);
+                    syncModeController.SetVideoVisual();
                     break;
                 case PLAYER_MODE_STREAM:
                     _currentPlayer = avProVideoPlayer;
                     screenMaterial.SetTexture("_EmissionMap", streamRTSource.sharedMaterial.GetTexture("_MainTex"));
                     screenMaterial.SetInt("_IsAVProInput", 1);
+                    syncModeController.SetStreamVisual();
                     break;
             }
 
             _localPlayerMode = currentPlayerMode;
-
-            lastVideoPlayer.Stop();
-            StartVideoLoad(_syncedURL);
-            _currentPlayer.SetTime(lastPlayTime);
         }
 
         int _deserializeCounter;
@@ -442,22 +439,25 @@ namespace UdonSharp.Video
                 return;
             }
 
-            if (_locallyPaused)
+            if (_localPlayerMode != currentPlayerMode)
+                ChangePlayerMode();
+
+            if (!_ownerPaused && _locallyPaused)
             {
                 _currentPlayer.Play();
                 _locallyPaused = false;
+            }
+            else
+            {
+                _currentPlayer.Pause();
+                _locallyPaused = true;
             }
 
             //if (_syncedURL != null)
             //    Debug.Log("[USharpVideo] Received URL " + _syncedURL);
 
             if (_videoNumber == _loadedVideoNumber)
-            {
-                if (_localPlayerMode != currentPlayerMode)
-                    ChangePlayerMode();
-
                 return;
-            }
 
             _currentPlayer.Stop();
             StartVideoLoad(_syncedURL);
@@ -544,7 +544,8 @@ namespace UdonSharp.Video
             }
             else // Stream player
             {
-                SetStatusText("");
+                if (!string.IsNullOrEmpty(_statusStr))
+                    SetStatusText("");
             }
             
             UpdateVideoLoad();

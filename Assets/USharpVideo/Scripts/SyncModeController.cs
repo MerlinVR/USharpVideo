@@ -27,15 +27,27 @@ namespace UdonSharp.Video
             _streamXTarget = transformWidth * 0.5f;
         }
 
+        public void SetVideoVisual()
+        {
+            _animator.SetInteger("Target", 0);
+            _sliderText.text = "Video";
+            videoPlayer.currentPlayerMode = 0;
+        }
+
+        public void SetStreamVisual()
+        {
+            _animator.SetInteger("Target", 1);
+            _sliderText.text = "Stream";
+            videoPlayer.currentPlayerMode = 1;
+        }
+
         public void ClickVideoToggle()
         {
             if (!Networking.IsOwner(videoPlayer.gameObject) ||
                 videoPlayer.HasVideoSyncMode())
                 return;
-            
-            _animator.SetInteger("Target", 0);
-            _sliderText.text = "Video";
-            videoPlayer.currentPlayerMode = 0;
+
+            SetVideoVisual();
         }
 
         public void ClickStreamToggle()
@@ -43,10 +55,8 @@ namespace UdonSharp.Video
             if (!Networking.IsOwner(videoPlayer.gameObject) ||
                 videoPlayer.HasStreamSyncMode())
                 return;
-            
-            _animator.SetInteger("Target", 1);
-            _sliderText.text = "Stream";
-            videoPlayer.currentPlayerMode = 1;
+
+            SetStreamVisual();
         }
     }
 }
