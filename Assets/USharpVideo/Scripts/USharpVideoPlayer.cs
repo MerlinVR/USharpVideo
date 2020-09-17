@@ -47,13 +47,16 @@ namespace UdonSharp.Video
         public Text urlText;
         public Text urlPlaceholderText;
         public GameObject masterLockedIcon;
+        public Graphic lockGraphic;
         public GameObject masterUnlockedIcon;
+        public GameObject pauseStopIcon;
         public GameObject pauseIcon;
+        public GameObject stopIcon;
+
         public GameObject playIcon;
         public Text statusText;
         public Text statusTextDropShadow;
         public Slider videoProgressSlider;
-        public Graphic lockGraphic;
         public SyncModeController syncModeController;
 
         // Info panel elements
@@ -269,7 +272,7 @@ namespace UdonSharp.Video
             }
 
             playIcon.SetActive(_ownerPaused);
-            pauseIcon.SetActive(!_ownerPaused);
+            pauseStopIcon.SetActive(!_ownerPaused);
         }
 
         bool _draggingSlider = false;
@@ -462,12 +465,16 @@ namespace UdonSharp.Video
                     screenMaterial.SetTexture("_EmissionMap", _videoRenderTex);
                     screenMaterial.SetInt("_IsAVProInput", 0);
                     syncModeController.SetVideoVisual();
+                    pauseIcon.SetActive(true);
+                    stopIcon.SetActive(false);
                     break;
                 case PLAYER_MODE_STREAM:
                     _currentPlayer = avProVideoPlayer;
                     screenMaterial.SetTexture("_EmissionMap", streamRTSource.sharedMaterial.GetTexture("_MainTex"));
                     screenMaterial.SetInt("_IsAVProInput", 1);
                     syncModeController.SetStreamVisual();
+                    pauseIcon.SetActive(false);
+                    stopIcon.SetActive(true);
                     break;
             }
 
@@ -485,7 +492,7 @@ namespace UdonSharp.Video
             masterLockedIcon.SetActive(_masterOnly);
             masterUnlockedIcon.SetActive(!_masterOnly);
             playIcon.SetActive(_ownerPaused);
-            pauseIcon.SetActive(!_ownerPaused);
+            pauseStopIcon.SetActive(!_ownerPaused);
 
             // Needed to prevent "rewinding" behaviour of Udon synced strings/VRCUrl's where, when switching ownership the string will be populated with the second to last value locally observed.
             if (_deserializeCounter < 10)
@@ -586,8 +593,7 @@ namespace UdonSharp.Video
             }
             else // Stream player
             {
-                //if (!string.IsNullOrEmpty(_statusStr))
-                    SetStatusText(currentTime.ToString());
+                SetStatusText(_statusStr);
 
                 screenRenderer.sharedMaterial.SetTexture("_EmissionMap", streamRTSource.sharedMaterial.GetTexture("_MainTex"));
             }
@@ -714,7 +720,7 @@ namespace UdonSharp.Video
             urlPlaceholderTextProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.urlPlaceholderText));
             masterLockedIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.masterLockedIcon));
             masterUnlockedIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.masterUnlockedIcon));
-            pauseIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.pauseIcon));
+            pauseIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.pauseStopIcon));
             playIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.playIcon));
             statusTextProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.statusText));
             statusTextDropShadowProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.statusTextDropShadow));
