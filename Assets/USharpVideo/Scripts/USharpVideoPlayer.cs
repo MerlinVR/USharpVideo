@@ -315,6 +315,7 @@ namespace UdonSharp.Video
             _currentPlayer.Stop();
             _syncedURL = VRCUrl.Empty;
             _locallyPaused = _ownerPaused = false;
+            _draggingSlider = false;
         }
 
         public override void OnVideoReady()
@@ -360,6 +361,7 @@ namespace UdonSharp.Video
             }
 
             _statusStr = "";
+            _draggingSlider = false;
 
             lastVideoField.text = currentVideoField.text;
             currentVideoField.text = _syncedURL.Get();
@@ -467,6 +469,7 @@ namespace UdonSharp.Video
                     syncModeController.SetVideoVisual();
                     pauseIcon.SetActive(true);
                     stopIcon.SetActive(false);
+                    videoProgressSlider.gameObject.SetActive(true);
                     break;
                 case PLAYER_MODE_STREAM:
                     _currentPlayer = avProVideoPlayer;
@@ -475,6 +478,7 @@ namespace UdonSharp.Video
                     syncModeController.SetStreamVisual();
                     pauseIcon.SetActive(false);
                     stopIcon.SetActive(true);
+                    videoProgressSlider.gameObject.SetActive(false);
                     break;
             }
 
@@ -621,7 +625,7 @@ namespace UdonSharp.Video
             {
                 if (isOwner && _needsOwnerTransition)
                 {
-                    StopVideo();
+                    //StopVideo();
                     _needsOwnerTransition = false;
                     _masterOnly = _masterOnlyLocal;
                 }
