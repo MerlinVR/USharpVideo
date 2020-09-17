@@ -13,21 +13,21 @@ TagManager:
   - UI
   - 
   - 
+  - Interactive
+  - Player
+  - PlayerLocal
+  - Environment
+  - UiMenu
+  - Pickup
+  - PickupNoEnvironment
+  - StereoLeft
+  - StereoRight
+  - Walkthrough
+  - MirrorReflection
+  - reserved2
+  - reserved3
+  - reserved4
   - PostProcessing
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
   - 
   - 
   - 

@@ -26,7 +26,12 @@ namespace UdonSharp.Video
     {
         public VRCUrlInputField inputField;
         
-        public BaseVRCVideoPlayer videoPlayer;
+        public VRCUnityVideoPlayer unityVideoPlayer;
+        public VRCAVProVideoPlayer avProVideoPlayer;
+        public Renderer screenRenderer;
+        public MeshRenderer streamRTSource;
+
+        RenderTexture _videoRenderTex;
 
         [Tooltip("Whether to allow video seeking with the progress bar on the video")]
         public bool allowSeeking = true;
@@ -34,7 +39,7 @@ namespace UdonSharp.Video
         [Tooltip("How often the video player should check if it is more than Sync Threshold out of sync with the video time")]
         public float syncFrequency = 5.0f;
         [Tooltip("How many seconds desynced from the owner the client needs to be to trigger a resync")]
-        public float syncThreshold = 1f;
+        public float syncThreshold = 0.5f;
         
         [Tooltip("This list of videos plays sequentially on world load until someone puts in a video")]
         public VRCUrl[] playlist;
@@ -88,21 +93,42 @@ namespace UdonSharp.Video
         string _statusStr = "";
 
         const int MAX_RETRY_COUNT = 1;
-        const float RETRY_TIMEOUT = 10f;
+        const float RETRY_TIMEOUT = 9f;
 
         bool _loadingVideo = false;
         float _currentLoadingTime = 0f;
         int _currentRetryCount = 0;
 
+        const byte PLAYER_MODE_VIDEO = 0;
+        const byte PLAYER_MODE_STREAM = 1;
+        const byte PLAYER_MODE_KARAOKE = 2; // Todo
+        //const byte PLAYER_MODE_NONE = 255;
+
+        [UdonSynced, System.NonSerialized]
+        public byte currentPlayerMode = PLAYER_MODE_VIDEO;
+        byte _localPlayerMode = PLAYER_MODE_VIDEO;
+
         private void Start()
         {
-            videoPlayer.Loop = false;
-            _currentPlayer = videoPlayer;
+            unityVideoPlayer.Loop = false;
+            unityVideoPlayer.Stop();
+            avProVideoPlayer.Loop = false;
+            avProVideoPlayer.Stop();
+
+            _currentPlayer = unityVideoPlayer;
+            //_currentPlayer = avProVideoPlayer;
+            _videoRenderTex = (RenderTexture)screenRenderer.sharedMaterial.GetTexture("_EmissionMap");
 
             PlayNextVideoFromPlaylist();
 #if !UNITY_EDITOR // Causes null ref exceptions so just exclude it from the editor
             masterTextField.text = Networking.GetOwner(masterCheckObj).displayName;
 #endif
+        }
+
+        private void OnDisable()
+        {
+            screenRenderer.sharedMaterial.SetTexture("_EmissionMap", _videoRenderTex);
+            screenRenderer.sharedMaterial.SetInt("_IsAVProInput", 0);
         }
 
         void StartVideoLoad(VRCUrl url)
@@ -362,6 +388,40 @@ namespace UdonSharp.Video
             }
         }
 
+        public bool HasVideoSyncMode() => currentPlayerMode == PLAYER_MODE_VIDEO;
+        public bool HasStreamSyncMode() => currentPlayerMode == PLAYER_MODE_STREAM;
+
+        void ChangePlayerMode()
+        {
+            if (currentPlayerMode == _localPlayerMode)
+                return;
+
+            BaseVRCVideoPlayer lastVideoPlayer = _currentPlayer;
+            float lastPlayTime = lastVideoPlayer.GetTime();
+
+            Material screenMaterial = screenRenderer.sharedMaterial;
+
+            switch (currentPlayerMode)
+            {
+                case PLAYER_MODE_VIDEO:
+                    _currentPlayer = unityVideoPlayer;
+                    screenMaterial.SetTexture("_EmissionMap", _videoRenderTex);
+                    screenMaterial.SetInt("_IsAVProInput", 0);
+                    break;
+                case PLAYER_MODE_STREAM:
+                    _currentPlayer = avProVideoPlayer;
+                    screenMaterial.SetTexture("_EmissionMap", streamRTSource.sharedMaterial.GetTexture("_MainTex"));
+                    screenMaterial.SetInt("_IsAVProInput", 1);
+                    break;
+            }
+
+            _localPlayerMode = currentPlayerMode;
+
+            lastVideoPlayer.Stop();
+            StartVideoLoad(_syncedURL);
+            _currentPlayer.SetTime(lastPlayTime);
+        }
+
         int _deserializeCounter;
 
         public override void OnDeserialization()
@@ -393,6 +453,9 @@ namespace UdonSharp.Video
 
             if (_videoNumber == _loadedVideoNumber)
             {
+                if (_localPlayerMode != currentPlayerMode)
+                    ChangePlayerMode();
+
                 return;
             }
 
@@ -442,33 +505,46 @@ namespace UdonSharp.Video
                     lockGraphic.color = redGraphicColor;
             }
 
-            float currentTime = _currentPlayer.GetTime();
-            float duration = _currentPlayer.GetDuration();
-            string totalTimeStr = System.TimeSpan.FromSeconds(duration).ToString(@"hh\:mm\:ss");
+            if (_localPlayerMode != currentPlayerMode)
+                ChangePlayerMode();
 
-            if (_draggingSlider && string.IsNullOrEmpty(_statusStr))
+            if (_localPlayerMode == PLAYER_MODE_STREAM)
+                screenRenderer.sharedMaterial.SetTexture("_EmissionMap", streamRTSource.sharedMaterial.GetTexture("_MainTex"));
+
+            if (currentPlayerMode == PLAYER_MODE_VIDEO)
             {
-                string currentTimeStr = System.TimeSpan.FromSeconds(videoProgressSlider.value * duration).ToString(@"hh\:mm\:ss");
-                SetStatusText(currentTimeStr + "/" + totalTimeStr);
-            }
-            else
-            {
-                if (string.IsNullOrEmpty(_statusStr))
+                float currentTime = _currentPlayer.GetTime();
+                float duration = _currentPlayer.GetDuration();
+                string totalTimeStr = System.TimeSpan.FromSeconds(duration).ToString(@"hh\:mm\:ss");
+
+                if (_draggingSlider && string.IsNullOrEmpty(_statusStr))
                 {
-                    string currentTimeStr = System.TimeSpan.FromSeconds(currentTime).ToString(@"hh\:mm\:ss");
+                    string currentTimeStr = System.TimeSpan.FromSeconds(videoProgressSlider.value * duration).ToString(@"hh\:mm\:ss");
                     SetStatusText(currentTimeStr + "/" + totalTimeStr);
                 }
+                else
+                {
+                    if (string.IsNullOrEmpty(_statusStr))
+                    {
+                        string currentTimeStr = System.TimeSpan.FromSeconds(currentTime).ToString(@"hh\:mm\:ss");
+                        SetStatusText(currentTimeStr + "/" + totalTimeStr);
+                    }
 
-                videoProgressSlider.value = Mathf.Clamp01(currentTime / (duration > 0f ? duration : 1f));
+                    videoProgressSlider.value = Mathf.Clamp01(currentTime / (duration > 0f ? duration : 1f));
+                }
+
+                // Keep the target time the same while paused
+                if (_ownerPaused)
+                {
+                    _videoStartNetworkTime = (float)Networking.GetServerTimeInSeconds() - currentTime;
+
+                    _currentPlayer.Pause();
+                    _locallyPaused = true;
+                }
             }
-
-            // Keep the target time the same while paused
-            if (_ownerPaused)
+            else // Stream player
             {
-                _videoStartNetworkTime = (float)Networking.GetServerTimeInSeconds() - currentTime;
-
-                _currentPlayer.Pause();
-                _locallyPaused = true;
+                SetStatusText("");
             }
             
             UpdateVideoLoad();
@@ -508,12 +584,15 @@ namespace UdonSharp.Video
 
         void SyncVideo()
         {
-            float offsetTime = Mathf.Clamp((float)Networking.GetServerTimeInSeconds() - _videoStartNetworkTime, 0f, _currentPlayer.GetDuration());
-
-            if (Mathf.Abs(_currentPlayer.GetTime() - offsetTime) > syncThreshold)
+            if (currentPlayerMode == PLAYER_MODE_VIDEO)
             {
-                _currentPlayer.SetTime(offsetTime);
-                //Debug.LogFormat("[USharpVideo] Syncing Video to {0:N2}", offsetTime);
+                float offsetTime = Mathf.Clamp((float)Networking.GetServerTimeInSeconds() - _videoStartNetworkTime, 0f, _currentPlayer.GetDuration());
+
+                if (Mathf.Abs(_currentPlayer.GetTime() - offsetTime) > syncThreshold)
+                {
+                    _currentPlayer.SetTime(offsetTime);
+                    //Debug.LogFormat("[USharpVideo] Syncing Video to {0:N2}", offsetTime);
+                }
             }
         }
 
@@ -525,7 +604,7 @@ namespace UdonSharp.Video
     }
 
 #if UNITY_EDITOR && !COMPILER_UDONSHARP
-    [CustomEditor(typeof(USharpVideoPlayer))]
+    //[CustomEditor(typeof(USharpVideoPlayer))]
     internal class USharpVideoPlayerInspector : Editor
     {
         static bool _showUIReferencesDropdown = false;
@@ -560,7 +639,7 @@ namespace UdonSharp.Video
 
         private void OnEnable()
         {
-            videoPlayerProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.videoPlayer));
+            videoPlayerProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.unityVideoPlayer));
 
             allowSeekProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.allowSeeking));
             syncFrequencyProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.syncFrequency));
