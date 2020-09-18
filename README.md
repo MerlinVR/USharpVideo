@@ -1,7 +1,7 @@
 # USharpVideo
-A basic video player made for VRChat using Udon and UdonSharp. Does not yet support live streams.
+A basic video player made for VRChat using Udon and UdonSharp. Supports normal videos and live streams.
 
-![example](https://i.imgur.com/dR7IUWj.png)
+![example](https://i.imgur.com/EZ3imc1.png)
 
 ## Features
 - Allows master only/everyone lock toggle for video playing
@@ -9,6 +9,9 @@ A basic video player made for VRChat using Udon and UdonSharp. Does not yet supp
 - Pause/Play
 - Shows master and the last person to play a video
 - Default playlist that plays when entering the world
+- Stream player
+- Support for YouTube timestamped URL's (youtube.com?v=\<video\>&t=\<seconds\>)
+- Volume slider
 
 ## Installation
 1. Install the [latest](https://github.com/MerlinVR/USharpVideo/releases/latest) release
