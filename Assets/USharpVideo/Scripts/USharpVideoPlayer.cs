@@ -786,6 +786,9 @@ namespace UdonSharp.Video
             unityVideoPlayerProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.unityVideoPlayer));
             avProVideoPlayerProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.avProVideoPlayer));
 
+            screenRendererProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.screenRenderer));
+            streamRTSourceProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.streamRTSource));
+
             allowSeekProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.allowSeeking));
             syncFrequencyProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.syncFrequency));
             syncThresholdProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.syncThreshold));
@@ -840,7 +843,7 @@ namespace UdonSharp.Video
             playlistList.DoLayoutList();
 
             EditorGUILayout.Space();
-            _showUIReferencesDropdown = EditorGUILayout.Foldout(_showUIReferencesDropdown, "UI Element References");
+            _showUIReferencesDropdown = EditorGUILayout.Foldout(_showUIReferencesDropdown, "Object References");
 
             if (_showUIReferencesDropdown)
             {
@@ -848,7 +851,6 @@ namespace UdonSharp.Video
 
                 EditorGUILayout.PropertyField(screenRendererProperty);
                 EditorGUILayout.PropertyField(streamRTSourceProperty);
-
 
                 EditorGUILayout.PropertyField(urlTextProperty);
                 EditorGUILayout.PropertyField(urlPlaceholderTextProperty);
