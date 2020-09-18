@@ -48,6 +48,7 @@ Shader "Merlin/World/Standard Video Emission"
             [HideInInspector] _ZWrite("__zw", Float) = 1.0
 
         _MetaPassEmissiveBoost("Meta Pass Emissive Boost", Float) = 1.0
+        [Toggle(_)]_IsAVProInput("Is AV Pro Input", Int) = 0
     }
 
         CGINCLUDE
@@ -93,7 +94,7 @@ Shader "Merlin/World/Standard Video Emission"
 
             #pragma vertex vertBase
             #pragma fragment fragBase
-            #include "UnityStandardCoreForward.cginc"
+                #include "StandardVideoCore.cginc"
 
             ENDCG
         }
@@ -129,7 +130,7 @@ Shader "Merlin/World/Standard Video Emission"
 
             #pragma vertex vertAdd
             #pragma fragment fragAdd
-            #include "UnityStandardCoreForward.cginc"
+            #include "StandardVideoCore.cginc"
 
             ENDCG
         }
@@ -194,7 +195,7 @@ Shader "Merlin/World/Standard Video Emission"
             #pragma vertex vertDeferred
             #pragma fragment fragDeferred
 
-            #include "UnityStandardCore.cginc"
+            #include "StandardVideoCore.cginc"
 
             ENDCG
         }
@@ -221,7 +222,7 @@ Shader "Merlin/World/Standard Video Emission"
                 #include "UnityCG.cginc"
                 #include "UnityStandardInput.cginc"
                 #include "UnityMetaPass.cginc"
-                #include "UnityStandardCore.cginc"
+                #include "StandardVideoCore.cginc"
 
                 struct v2f_meta
                 {
@@ -282,7 +283,7 @@ Shader "Merlin/World/Standard Video Emission"
                     o.Albedo = UnityLightmappingAlbedo (data.diffColor, data.specColor, data.smoothness);
                 #endif
                     o.SpecularColor = data.specColor;
-                    o.Emission = Emission(i.uv.xy) * _MetaPassEmissiveBoost;
+                    o.Emission = VideoEmission(i.uv.xy) * _MetaPassEmissiveBoost;
 
                     return UnityMetaFragment(o);
                 }
@@ -326,7 +327,7 @@ Shader "Merlin/World/Standard Video Emission"
 
             #pragma vertex vertBase
             #pragma fragment fragBase
-            #include "UnityStandardCoreForward.cginc"
+            #include "StandardVideoCore.cginc"
 
             ENDCG
         }

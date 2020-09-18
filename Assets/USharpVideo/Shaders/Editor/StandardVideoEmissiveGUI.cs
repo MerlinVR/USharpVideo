@@ -84,6 +84,7 @@ namespace UnityEditor
         MaterialProperty detailNormalMap = null;
         MaterialProperty uvSetSecondary = null;
         MaterialProperty emissiveBoost = null;
+        MaterialProperty isAVProInput = null;
 
         MaterialEditor m_MaterialEditor;
         WorkflowMode m_WorkflowMode = WorkflowMode.Specular;
@@ -125,6 +126,7 @@ namespace UnityEditor
             detailNormalMap = FindProperty("_DetailNormalMap", props);
             uvSetSecondary = FindProperty("_UVSec", props);
             emissiveBoost = FindProperty("_MetaPassEmissiveBoost", props);
+            isAVProInput = FindProperty("_IsAVProInput", props);
         }
 
         public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] props)
@@ -299,6 +301,8 @@ namespace UnityEditor
                 m_MaterialEditor.LightmapEmissionFlagsProperty(MaterialEditor.kMiniTextureFieldLabelIndentLevel, true);
                 m_MaterialEditor.FloatProperty(emissiveBoost, "GI Emissive boost");
             }
+
+            m_MaterialEditor.ShaderProperty(isAVProInput, "Is AVPro input");
         }
 
         void DoSpecularMetallicArea()
