@@ -97,11 +97,12 @@ namespace UdonSharp.Video
         string _statusStr = "";
 
         const int MAX_RETRY_COUNT = 1;
-        const float RETRY_TIMEOUT = 9f;
+        const float RETRY_TIMEOUT = 10f;
 
         bool _loadingVideo = false;
         float _currentLoadingTime = 0f;
         int _currentRetryCount = 0;
+        float _videoTargetStartTime = 0f;
 
         const int PLAYER_MODE_VIDEO = 0;
         const int PLAYER_MODE_STREAM = 1;
@@ -194,6 +195,61 @@ namespace UdonSharp.Video
             _locallyPaused = _ownerPaused = false;
 
             _videoStartNetworkTime = float.MaxValue;
+
+            if (Networking.IsOwner(gameObject))
+            {
+                // Attempt to parse out a start time from YouTube links with t= or start=
+                string urlStr = url.Get();
+
+                if (currentPlayerMode != PLAYER_MODE_STREAM &&
+                    (urlStr.Contains("youtube.com/watch") ||
+                     urlStr.Contains("youtu.be/")))
+                {
+                    int tIndex = -1;
+
+                    tIndex = urlStr.IndexOf("?t=");
+
+                    if (tIndex == -1) tIndex = urlStr.IndexOf("&t=");
+                    if (tIndex == -1) tIndex = urlStr.IndexOf("?start=");
+                    if (tIndex == -1) tIndex = urlStr.IndexOf("&start=");
+
+                    if (tIndex != -1)
+                    {
+                        char[] urlArr = urlStr.ToCharArray();
+                        int numIdx = urlStr.IndexOf('=', tIndex) + 1;
+
+                        string intStr = "";
+
+                        while (numIdx < urlArr.Length)
+                        {
+                            char currentChar = urlArr[numIdx];
+                            if (!char.IsNumber(currentChar))
+                                break;
+
+                            intStr += currentChar;
+
+                            ++numIdx;
+                        }
+
+                        if (intStr.Length > 0)
+                        {
+                            int secondsCount = 0;
+                            if (int.TryParse(intStr, out secondsCount))
+                                _videoTargetStartTime = secondsCount;
+                            else
+                                _videoTargetStartTime = 0f;
+                        }
+                        else
+                            _videoTargetStartTime = 0f;
+                    }
+                    else
+                        _videoTargetStartTime = 0f;
+                }
+                else
+                    _videoTargetStartTime = 0f;
+            }
+            else
+                _videoTargetStartTime = 0f;
 
             Debug.Log("[USharpVideo] Video URL Changed to " + _syncedURL);
         }
@@ -316,6 +372,7 @@ namespace UdonSharp.Video
             _syncedURL = VRCUrl.Empty;
             _locallyPaused = _ownerPaused = false;
             _draggingSlider = false;
+            _videoTargetStartTime = 0f;
         }
 
         public override void OnVideoReady()
@@ -347,9 +404,13 @@ namespace UdonSharp.Video
             if (Networking.IsOwner(gameObject))
             {
                 if (_locallyPaused)
+                {
                     _videoStartNetworkTime = (float)Networking.GetServerTimeInSeconds() - _currentPlayer.GetTime();
+                }
                 else
-                    _videoStartNetworkTime = (float)Networking.GetServerTimeInSeconds();
+                {
+                    _videoStartNetworkTime = (float)Networking.GetServerTimeInSeconds() - _videoTargetStartTime;
+                }
 
                 _ownerPaused = _locallyPaused = false;
                 _ownerPlaying = true;
@@ -365,6 +426,9 @@ namespace UdonSharp.Video
 
             lastVideoField.text = currentVideoField.text;
             currentVideoField.text = _syncedURL.Get();
+
+            _currentPlayer.SetTime(_videoTargetStartTime);
+            _videoTargetStartTime = 0f;
 
 #if !UNITY_EDITOR // Causes null ref exceptions so just exclude it from the editor
             videoOwnerTextField.text = Networking.GetOwner(gameObject).displayName;
@@ -393,6 +457,7 @@ namespace UdonSharp.Video
             _loadingVideo = false;
             _currentLoadingTime = 0f;
             _currentRetryCount = 0;
+            _videoTargetStartTime = 0f;
 
             _currentPlayer.Stop();
             Debug.LogError("[USharpVideo] Video failed: " + _syncedURL);
