@@ -14,7 +14,8 @@ A basic video player made for VRChat using Udon and UdonSharp. Supports normal v
 - Volume slider
 
 ## Installation
-1. Install the [latest](https://github.com/MerlinVR/USharpVideo/releases/latest) release
+1. Install the latest VRCSDK and latest release of [UdonSharp](https://github.com/MerlinVR/UdonSharp/releases/latest)
+2. Install the [latest](https://github.com/MerlinVR/USharpVideo/releases/latest) release
 2. Drag the USharpVideo prefab into your scene, resize to fit
 3. Optionally bake realtime GI for the scene
 
