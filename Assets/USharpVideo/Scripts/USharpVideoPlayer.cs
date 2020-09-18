@@ -250,7 +250,7 @@ namespace UdonSharp.Video
             }
             else
                 _videoTargetStartTime = 0f;
-
+            
             Debug.Log("[USharpVideo] Video URL Changed to " + _syncedURL);
         }
 

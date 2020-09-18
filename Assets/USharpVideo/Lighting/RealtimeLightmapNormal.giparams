@@ -8,9 +8,9 @@ LightmapParameters:
   m_PrefabAsset: {fileID: 0}
   m_Name: RealtimeLightmapNormal
   serializedVersion: 3
-  resolution: 10
-  clusterResolution: 0.55
-  irradianceBudget: 128
+  resolution: 8
+  clusterResolution: 0.5
+  irradianceBudget: 192
   irradianceQuality: 16384
   backFaceTolerance: 0.9
   isTransparent: 0
