@@ -24,8 +24,6 @@ namespace UdonSharp.Video
     [AddComponentMenu("Udon Sharp/Video/M Video Player")]
     public class USharpVideoPlayer : UdonSharpBehaviour
     {
-        public VRCUrlInputField inputField;
-        
         public VRCUnityVideoPlayer unityVideoPlayer;
         public VRCAVProVideoPlayer avProVideoPlayer;
         public Renderer screenRenderer;
@@ -43,7 +41,9 @@ namespace UdonSharp.Video
         
         [Tooltip("This list of videos plays sequentially on world load until someone puts in a video")]
         public VRCUrl[] playlist;
-        
+
+        public VRCUrlInputField inputField;
+
         public Text urlText;
         public Text urlPlaceholderText;
         public GameObject masterLockedIcon;
@@ -741,12 +741,16 @@ namespace UdonSharp.Video
     }
 
 #if UNITY_EDITOR && !COMPILER_UDONSHARP
-    //[CustomEditor(typeof(USharpVideoPlayer))]
+    [CustomEditor(typeof(USharpVideoPlayer))]
     internal class USharpVideoPlayerInspector : Editor
     {
         static bool _showUIReferencesDropdown = false;
 
-        SerializedProperty videoPlayerProperty;
+        SerializedProperty unityVideoPlayerProperty;
+        SerializedProperty avProVideoPlayerProperty;
+
+        SerializedProperty screenRendererProperty;
+        SerializedProperty streamRTSourceProperty;
 
         ReorderableList playlistList;
 
@@ -756,16 +760,19 @@ namespace UdonSharp.Video
         SerializedProperty playlistProperty;
 
         // UI fields
+        SerializedProperty inputFieldProperty;
         SerializedProperty urlTextProperty;
         SerializedProperty urlPlaceholderTextProperty;
         SerializedProperty masterLockedIconProperty;
         SerializedProperty masterUnlockedIconProperty;
+        SerializedProperty lockGraphicProperty;
+        SerializedProperty pauseStopIconProperty;
         SerializedProperty pauseIconProperty;
+        SerializedProperty stopIconProperty;
         SerializedProperty playIconProperty;
         SerializedProperty statusTextProperty;
         SerializedProperty statusTextDropShadowProperty;
         SerializedProperty videoProgressSlider;
-        SerializedProperty lockGraphicProperty;
 
         // Info panel fields
         SerializedProperty masterTextFieldProperty;
@@ -776,7 +783,8 @@ namespace UdonSharp.Video
 
         private void OnEnable()
         {
-            videoPlayerProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.unityVideoPlayer));
+            unityVideoPlayerProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.unityVideoPlayer));
+            avProVideoPlayerProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.avProVideoPlayer));
 
             allowSeekProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.allowSeeking));
             syncFrequencyProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.syncFrequency));
@@ -789,12 +797,14 @@ namespace UdonSharp.Video
             urlPlaceholderTextProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.urlPlaceholderText));
             masterLockedIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.masterLockedIcon));
             masterUnlockedIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.masterUnlockedIcon));
-            pauseIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.pauseStopIcon));
+            lockGraphicProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.lockGraphic));
+            pauseStopIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.pauseStopIcon));
+            pauseIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.pauseIcon));
+            stopIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.stopIcon));
             playIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.playIcon));
             statusTextProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.statusText));
             statusTextDropShadowProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.statusTextDropShadow));
             videoProgressSlider = serializedObject.FindProperty(nameof(USharpVideoPlayer.videoProgressSlider));
-            lockGraphicProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.lockGraphic));
 
             masterTextFieldProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.masterTextField));
             videoOwnerTextFieldProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.videoOwnerTextField));
@@ -819,7 +829,8 @@ namespace UdonSharp.Video
                 UdonSharpGUI.DrawProgramSource(target))
                 return;
 
-            EditorGUILayout.PropertyField(videoPlayerProperty);
+            EditorGUILayout.PropertyField(unityVideoPlayerProperty);
+            EditorGUILayout.PropertyField(avProVideoPlayerProperty);
 
             EditorGUILayout.PropertyField(allowSeekProperty);
             EditorGUILayout.PropertyField(syncFrequencyProperty);
@@ -835,16 +846,22 @@ namespace UdonSharp.Video
             {
                 EditorGUI.indentLevel++;
 
+                EditorGUILayout.PropertyField(screenRendererProperty);
+                EditorGUILayout.PropertyField(streamRTSourceProperty);
+
+
                 EditorGUILayout.PropertyField(urlTextProperty);
                 EditorGUILayout.PropertyField(urlPlaceholderTextProperty);
                 EditorGUILayout.PropertyField(masterLockedIconProperty);
                 EditorGUILayout.PropertyField(masterUnlockedIconProperty);
+                EditorGUILayout.PropertyField(lockGraphicProperty);
+                EditorGUILayout.PropertyField(pauseStopIconProperty);
                 EditorGUILayout.PropertyField(pauseIconProperty);
+                EditorGUILayout.PropertyField(stopIconProperty);
                 EditorGUILayout.PropertyField(playIconProperty);
                 EditorGUILayout.PropertyField(statusTextProperty);
                 EditorGUILayout.PropertyField(statusTextDropShadowProperty);
                 EditorGUILayout.PropertyField(videoProgressSlider);
-                EditorGUILayout.PropertyField(lockGraphicProperty);
 
                 EditorGUILayout.PropertyField(masterTextFieldProperty);
                 EditorGUILayout.PropertyField(videoOwnerTextFieldProperty);
