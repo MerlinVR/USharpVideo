@@ -24,7 +24,19 @@ namespace UdonSharp.Video
 
         private void Start()
         {
+            ApplyVolumeSlider();
             UpdateVolumeIcon();
+        }
+
+        void ApplyVolumeSlider()
+        {
+            // https://www.dr-lex.be/info-stuff/volumecontrols.html#ideal thanks TCL for help with finding and understanding this
+            // Using the 50dB dynamic range constants
+            float volume = Mathf.Clamp01(3.1623e-3f * Mathf.Exp(slider.value * 5.757f) - 3.1623e-3f);
+
+            controlledAudioSource.volume = volume;
+            avProAudioR.volume = volume;
+            avProAudioL.volume = volume;
         }
 
         public void SliderValueChanged()
@@ -32,10 +44,7 @@ namespace UdonSharp.Video
             if (_muted)
                 return;
 
-            controlledAudioSource.volume = slider.value * slider.value;
-            avProAudioR.volume = slider.value * slider.value;
-            avProAudioL.volume = slider.value * slider.value;
-
+            ApplyVolumeSlider();
             UpdateVolumeIcon();
         }
 
@@ -51,9 +60,7 @@ namespace UdonSharp.Video
             }
             else
             {
-                controlledAudioSource.volume = slider.value * slider.value;
-                avProAudioR.volume = slider.value * slider.value;
-                avProAudioL.volume = slider.value * slider.value;
+                ApplyVolumeSlider();
             }
 
             UpdateVolumeIcon();
