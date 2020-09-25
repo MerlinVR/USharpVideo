@@ -4112,7 +4112,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 1
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: USharpVideo v0.2.1 U# Video Player
+  m_Text: USharpVideo v0.3.0 U# Video Player
 --- !u!1 &8514266413427860408
 GameObject:
   m_ObjectHideFlags: 0
