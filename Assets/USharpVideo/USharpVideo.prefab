@@ -3700,7 +3700,7 @@ MonoBehaviour:
   targetTexture: {fileID: 8400000, guid: 47ac27448e8b7a942aa7471935e4d8db, type: 2}
   targetMaterialRenderer: {fileID: 0}
   targetMaterialProperty: 
-  aspectRatio: 2
+  aspectRatio: 3
   targetAudioSources:
   - {fileID: 8514266414285905472}
   maximumResolution: 720
