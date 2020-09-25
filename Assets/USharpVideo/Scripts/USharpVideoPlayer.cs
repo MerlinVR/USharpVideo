@@ -33,6 +33,9 @@ namespace UdonSharp.Video
 
         [Tooltip("Whether to allow video seeking with the progress bar on the video")]
         public bool allowSeeking = true;
+
+        [Tooltip("If enabled defaults to unlocked so anyone can put in a URL")]
+        public bool defaultUnlocked = false;
         
         [Tooltip("How often the video player should check if it is more than Sync Threshold out of sync with the video time")]
         public float syncFrequency = 5.0f;
@@ -123,6 +126,12 @@ namespace UdonSharp.Video
             //_currentPlayer = avProVideoPlayer;
             _videoRenderTex = (RenderTexture)screenRenderer.sharedMaterial.GetTexture("_EmissionMap");
 
+            if (defaultUnlocked && Networking.IsOwner(gameObject))
+            {
+                _masterOnly = false;
+                _masterOnlyLocal = false;
+            }
+
             PlayNextVideoFromPlaylist();
 #if !UNITY_EDITOR // Causes null ref exceptions so just exclude it from the editor
             masterTextField.text = Networking.GetOwner(masterCheckObj).displayName;
@@ -131,8 +140,10 @@ namespace UdonSharp.Video
 
         private void OnDisable()
         {
+#if COMPILER_UDONSHARP
             screenRenderer.sharedMaterial.SetTexture("_EmissionMap", _videoRenderTex);
             screenRenderer.sharedMaterial.SetInt("_IsAVProInput", 0);
+#endif
         }
 
         void TakeOwnership()
@@ -772,6 +783,7 @@ namespace UdonSharp.Video
         ReorderableList playlistList;
 
         SerializedProperty allowSeekProperty;
+        SerializedProperty defaultUnlockedProperty;
         SerializedProperty syncFrequencyProperty;
         SerializedProperty syncThresholdProperty;
         SerializedProperty playlistProperty;
@@ -807,6 +819,7 @@ namespace UdonSharp.Video
             streamRTSourceProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.streamRTSource));
 
             allowSeekProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.allowSeeking));
+            defaultUnlockedProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.defaultUnlocked));
             syncFrequencyProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.syncFrequency));
             syncThresholdProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.syncThreshold));
 
@@ -853,6 +866,7 @@ namespace UdonSharp.Video
             EditorGUILayout.PropertyField(avProVideoPlayerProperty);
 
             EditorGUILayout.PropertyField(allowSeekProperty);
+            EditorGUILayout.PropertyField(defaultUnlockedProperty);
             EditorGUILayout.PropertyField(syncFrequencyProperty);
             EditorGUILayout.PropertyField(syncThresholdProperty);
 
