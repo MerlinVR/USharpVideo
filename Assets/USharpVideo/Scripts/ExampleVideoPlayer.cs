@@ -5,6 +5,7 @@
 using UdonSharp;
 using UnityEngine;
 using VRC.SDK3.Components;
+using VRC.SDK3.Components.Video;
 using VRC.SDK3.Video.Components;
 using VRC.SDK3.Video.Components.AVPro;
 using VRC.SDK3.Video.Components.Base;
@@ -125,7 +126,7 @@ namespace UdonSharp.Video
             }
         }
 
-        public override void OnVideoError()
+        public override void OnVideoError(VideoError videoError)
         {
             _currentPlayer.Stop();
             Debug.LogError("Video failed: " + _syncedURL);

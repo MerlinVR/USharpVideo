@@ -11,12 +11,12 @@ using VRC.SDK3.Video.Components.AVPro;
 using VRC.SDK3.Video.Components.Base;
 using VRC.SDKBase;
 using VRC.Udon;
+using VRC.SDK3.Components.Video;
 
 #if UNITY_EDITOR && !COMPILER_UDONSHARP
 using UnityEditor;
 using UnityEditorInternal;
 using UdonSharpEditor;
-using System.Collections.Generic;
 #endif
 
 namespace UdonSharp.Video
@@ -149,12 +149,12 @@ namespace UdonSharp.Video
         void StartVideoLoad(VRCUrl url)
         {
             Debug.Log("[USharpVideo] Started video load");
-            _currentPlayer.LoadURL(url);
             _statusStr = "Loading video...";
             SetStatusText(_statusStr);
             _loadingVideo = true;
             _currentLoadingTime = 0f;
             _currentRetryCount = 0;
+            _currentPlayer.LoadURL(url);
         }
 
         void PlayVideo(VRCUrl url, bool disablePlaylist)
@@ -452,7 +452,7 @@ namespace UdonSharp.Video
             PlayNextVideoFromPlaylist();
         }
 
-        public override void OnVideoError()
+        public override void OnVideoError(VideoError videoError)
         {
             _loadingVideo = false;
             _currentLoadingTime = 0f;
@@ -462,7 +462,24 @@ namespace UdonSharp.Video
             _currentPlayer.Stop();
             Debug.LogError("[USharpVideo] Video failed: " + _syncedURL);
 
-            _statusStr = "Failed to load video";
+            switch (videoError)
+            {
+                case VideoError.RateLimited:
+                    _statusStr = "Rate limited, try again in a few seconds";
+                    break;
+                case VideoError.PlayerError:
+                    _statusStr = "Video player error";
+                    break;
+                case VideoError.InvalidURL:
+                    _statusStr = "Invalid URL";
+                    break;
+                case VideoError.AccessDenied:
+                    _statusStr = "Video blocked, enable untrusted URLs";
+                    break;
+                default:
+                    _statusStr = "Failed to load video";
+                    break;
+            }
             SetStatusText(_statusStr);
             PlayNextVideoFromPlaylist();
         }
@@ -479,7 +496,7 @@ namespace UdonSharp.Video
 
                     if (++_currentRetryCount > MAX_RETRY_COUNT)
                     {
-                        OnVideoError();
+                        OnVideoError(VideoError.Unknown);
                     }
                     else
                     {
