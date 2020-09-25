@@ -19,7 +19,7 @@ RenderTexture:
   m_ColorFormat: 0
   m_MipMap: 0
   m_GenerateMips: 0
-  m_SRGB: 0
+  m_SRGB: 1
   m_UseDynamicScale: 0
   m_BindMS: 0
   m_TextureSettings:
