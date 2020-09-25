@@ -63,7 +63,8 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0
     - _GlossyReflections: 0
-    - _MetaPassEmissiveBoost: 1.5
+    - _IsAVProInput: 0
+    - _MetaPassEmissiveBoost: 1.2
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
