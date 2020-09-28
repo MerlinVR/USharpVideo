@@ -826,6 +826,7 @@ namespace UdonSharp.Video
             playlistProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.playlist));
 
             // UI Fields
+            inputFieldProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.inputField));
             urlTextProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.urlText));
             urlPlaceholderTextProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.urlPlaceholderText));
             masterLockedIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.masterLockedIcon));
@@ -883,6 +884,7 @@ namespace UdonSharp.Video
                 EditorGUILayout.PropertyField(screenRendererProperty);
                 EditorGUILayout.PropertyField(streamRTSourceProperty);
 
+                EditorGUILayout.PropertyField(inputFieldProperty);
                 EditorGUILayout.PropertyField(urlTextProperty);
                 EditorGUILayout.PropertyField(urlPlaceholderTextProperty);
                 EditorGUILayout.PropertyField(masterLockedIconProperty);
