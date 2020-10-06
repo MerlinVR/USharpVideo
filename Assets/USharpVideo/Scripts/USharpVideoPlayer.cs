@@ -863,9 +863,6 @@ namespace UdonSharp.Video
                 UdonSharpGUI.DrawProgramSource(target))
                 return;
 
-            EditorGUILayout.PropertyField(unityVideoPlayerProperty);
-            EditorGUILayout.PropertyField(avProVideoPlayerProperty);
-
             EditorGUILayout.PropertyField(allowSeekProperty);
             EditorGUILayout.PropertyField(defaultUnlockedProperty);
             EditorGUILayout.PropertyField(syncFrequencyProperty);
@@ -880,6 +877,9 @@ namespace UdonSharp.Video
             if (_showUIReferencesDropdown)
             {
                 EditorGUI.indentLevel++;
+
+                EditorGUILayout.PropertyField(unityVideoPlayerProperty);
+                EditorGUILayout.PropertyField(avProVideoPlayerProperty);
 
                 EditorGUILayout.PropertyField(screenRendererProperty);
                 EditorGUILayout.PropertyField(streamRTSourceProperty);
