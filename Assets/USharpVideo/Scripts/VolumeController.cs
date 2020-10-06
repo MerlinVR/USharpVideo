@@ -10,9 +10,7 @@ namespace UdonSharp.Video
     [AddComponentMenu("Udon Sharp/Video/Volume Controller")]
     public class VolumeController : UdonSharpBehaviour
     {
-        public AudioSource controlledAudioSource;
-        public AudioSource avProAudioR;
-        public AudioSource avProAudioL;
+        public AudioSource[] audioSources;
         public Slider slider;
 
         public GameObject muteIcon;
@@ -34,9 +32,8 @@ namespace UdonSharp.Video
             // Using the 50dB dynamic range constants
             float volume = Mathf.Clamp01(3.1623e-3f * Mathf.Exp(slider.value * 5.757f) - 3.1623e-3f);
 
-            controlledAudioSource.volume = volume;
-            avProAudioR.volume = volume;
-            avProAudioL.volume = volume;
+            foreach (AudioSource audioSource in audioSources)
+                audioSource.volume = volume;
         }
 
         public void SliderValueChanged()
@@ -54,9 +51,8 @@ namespace UdonSharp.Video
 
             if (_muted)
             {
-                controlledAudioSource.volume = 0f;
-                avProAudioR.volume = 0f;
-                avProAudioL.volume = 0f;
+                foreach (AudioSource audioSource in audioSources)
+                    audioSource.volume = 0f;
             }
             else
             {
