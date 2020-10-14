@@ -105,6 +105,7 @@ namespace UdonSharp.Video
         bool _loadingVideo = false;
         float _currentLoadingTime = 0f;
         int _currentRetryCount = 0;
+        VideoError _currentRetryReason = VideoError.Unknown;
         float _videoTargetStartTime = 0f;
 
         const int PLAYER_MODE_VIDEO = 0;
@@ -165,6 +166,7 @@ namespace UdonSharp.Video
             _loadingVideo = true;
             _currentLoadingTime = 0f;
             _currentRetryCount = 0;
+            _currentRetryReason = VideoError.Unknown;
             _currentPlayer.LoadURL(url);
         }
 
@@ -391,6 +393,7 @@ namespace UdonSharp.Video
             _loadingVideo = false;
             _currentLoadingTime = 0f;
             _currentRetryCount = 0;
+            _currentRetryReason = VideoError.Unknown;
 
             if (Networking.IsOwner(gameObject)) // The owner plays the video when it is ready
             {
@@ -465,34 +468,53 @@ namespace UdonSharp.Video
 
         public override void OnVideoError(VideoError videoError)
         {
-            _loadingVideo = false;
-            _currentLoadingTime = 0f;
-            _currentRetryCount = 0;
-            _videoTargetStartTime = 0f;
-
-            _currentPlayer.Stop();
-            Debug.LogError("[USharpVideo] Video failed: " + _syncedURL);
+            bool retry = _currentRetryCount <= MAX_RETRY_COUNT;
 
             switch (videoError)
             {
                 case VideoError.RateLimited:
-                    _statusStr = "Rate limited, try again in a few seconds";
+                    if (retry)
+                        _statusStr = "Rate limited, Retrying";
+                    else
+                        _statusStr = "Rate limited, try again in a few seconds";
                     break;
                 case VideoError.PlayerError:
+                    retry = false;
                     _statusStr = "Video player error";
                     break;
                 case VideoError.InvalidURL:
+                    retry = false;
                     _statusStr = "Invalid URL";
                     break;
                 case VideoError.AccessDenied:
+                    retry = false;
                     _statusStr = "Video blocked, enable untrusted URLs";
                     break;
                 default:
+                    retry = false;
                     _statusStr = "Failed to load video";
                     break;
             }
+
+            Debug.LogError("[USharpVideo] Video failed: " + _syncedURL);
             SetStatusText(_statusStr);
-            PlayNextVideoFromPlaylist();
+
+            if (retry)
+            {
+                _currentRetryReason = videoError;
+                SetStatusText(_statusStr);
+            } 
+            else
+            {
+                _loadingVideo = false;
+                _currentLoadingTime = 0f;
+                _currentRetryCount = 0;
+                _videoTargetStartTime = 0f;
+
+                _currentPlayer.Stop();
+
+                PlayNextVideoFromPlaylist();
+            }    
         }
 
         void UpdateVideoLoad()
@@ -507,7 +529,7 @@ namespace UdonSharp.Video
 
                     if (++_currentRetryCount > MAX_RETRY_COUNT)
                     {
-                        OnVideoError(VideoError.Unknown);
+                        OnVideoError(_currentRetryReason);
                     }
                     else
                     {
