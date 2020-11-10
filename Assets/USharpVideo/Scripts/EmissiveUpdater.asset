@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: EmissiveUpdater
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: bf7bff53de4b1884f954f555de7414c6,
+  serializedUdonProgramAsset: {fileID: 11400000, guid: 7230c1f11680d1f4d81d18b4920d9161,
     type: 2}
   udonAssembly: 
   assemblyError: 

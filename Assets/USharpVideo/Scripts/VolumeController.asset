@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: VolumeController
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: 5ff02cffd2c4abf48ad5cd60bca8bce9,
+  serializedUdonProgramAsset: {fileID: 11400000, guid: 87497104b3b4d9243abb7bf08e9b2ba1,
     type: 2}
   udonAssembly: 
   assemblyError: 

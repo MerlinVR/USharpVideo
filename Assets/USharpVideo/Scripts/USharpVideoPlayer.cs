@@ -286,6 +286,27 @@ namespace UdonSharp.Video
 
             PlayVideo(playlist[currentIdx], false);
         }
+        public void TriggerResyncButton()
+        {
+            Debug.Log("Resyncing: Video URL " + _syncedURL);
+
+            // Reset state
+            if (_currentPlayer != null) {
+                _currentPlayer.Stop();
+            }
+
+            if (!_ownerPaused && Networking.IsOwner(gameObject))
+            {
+                StartVideoLoad(_syncedURL);
+                return;
+            } else
+            {
+                // If the owner is not paused, the next deserialize will kick off syncing.
+                _locallyPaused = true;
+                _loadedVideoNumber = -1;
+                _videoStartNetworkTime = float.MaxValue;
+            }
+        }
 
         public void TriggerLockButton()
         {
