@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 447ea4bbd35f6a541adc230420ec00c2, type: 3}
+  m_Name: YT
+  m_EditorClassIdentifier: 
+  backgroundColor: {r: 0.18100001, g: 0.18100001, b: 0.18100001, a: 1}
+  fieldBackgroundColor: {r: 0.111999996, g: 0.111999996, b: 0.111999996, a: 1}
+  buttonBackgroundColor: {r: 0.9150943, g: 0.9150943, b: 0.9150943, a: 0}
+  scrollBarHandleColor: {r: 1, g: 0, b: 0, a: 1}
+  scrollBarProgressColor: {r: 1, g: 0.31199998, b: 0.31199998, a: 1}
+  iconColor: {r: 1, g: 1, b: 1, a: 1}
+  iconDropShadowColor: {r: 0, g: 0, b: 0, a: 1}
+  highlightedButtonColor: {r: 1, g: 0.52400005, b: 0.52400005, a: 1}
+  placeholderTextColor: {r: 0.50980395, g: 0.50980395, b: 0.50980395, a: 1}
+  textColor: {r: 1, g: 1, b: 1, a: 1}
+  textDropShadowColor: {r: 0.132, g: 0.118666664, b: 0.10266667, a: 1}
+  invertedTextColor: {r: 0.122641504, g: 0.111597456, b: 0.0983446, a: 1}
+  redIconColor: {r: 0.6320754, g: 0.19677822, b: 0.19677822, a: 1}
+  invertedIconColor: {r: 0.122641504, g: 0.111597456, b: 0.0983446, a: 1}
+  textHighlightColor: {r: 0.8584906, g: 0.8584906, b: 0.8584906, a: 0.5568628}
+  textCaretColor: {r: 0.9528302, g: 0.9528302, b: 0.9528302, a: 1}

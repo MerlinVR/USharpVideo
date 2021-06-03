@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 447ea4bbd35f6a541adc230420ec00c2, type: 3}
+  m_Name: Sepia
+  m_EditorClassIdentifier: 
+  backgroundColor: {r: 0.2735849, g: 0.20425516, b: 0.14711641, a: 1}
+  fieldBackgroundColor: {r: 0.36099997, g: 0.2681714, b: 0.19597141, a: 1}
+  buttonBackgroundColor: {r: 0.32599998, g: 0.2407306, b: 0.17440999, a: 1}
+  scrollBarHandleColor: {r: 0.9019608, g: 0.58807844, b: 0.35266665, a: 1}
+  scrollBarProgressColor: {r: 0.64599997, g: 0.44666284, b: 0.29715997, a: 1}
+  iconColor: {r: 0.7830189, g: 0.7830189, b: 0.7830189, a: 1}
+  iconDropShadowColor: {r: 0, g: 0, b: 0, a: 1}
+  highlightedButtonColor: {r: 0.90300006, g: 0.6674349, b: 0.4907609, a: 1}
+  placeholderTextColor: {r: 0.45099998, g: 0.35435712, b: 0.28187498, a: 1}
+  textColor: {r: 0.90300006, g: 0.6674349, b: 0.4907609, a: 1}
+  textDropShadowColor: {r: 0, g: 0, b: 0, a: 1}
+  invertedTextColor: {r: 0, g: 0, b: 0, a: 1}
+  redIconColor: {r: 0.6320754, g: 0.19677822, b: 0.19677822, a: 1}
+  invertedIconColor: {r: 0, g: 0, b: 0, a: 1}
+  textHighlightColor: {r: 0.9019608, g: 0.7339384, b: 0.6079216, a: 0.7019608}
+  textCaretColor: {r: 1, g: 1, b: 1, a: 1}

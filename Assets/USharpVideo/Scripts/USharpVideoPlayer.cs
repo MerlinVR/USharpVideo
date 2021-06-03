@@ -1,412 +1,234 @@
 ﻿
-// A U# transcription of the VRC example video player graph with more features such as ownership transfer, master lock, video seeking, volume control, and pausing
-// Original graph script written by TCL
-
+using JetBrains.Annotations;
 using UdonSharp;
 using UnityEngine;
-using UnityEngine.UI;
-using VRC.SDK3.Components;
-using VRC.SDK3.Video.Components;
-using VRC.SDK3.Video.Components.AVPro;
-using VRC.SDK3.Video.Components.Base;
-using VRC.SDKBase;
-using VRC.Udon;
 using VRC.SDK3.Components.Video;
-
-#if UNITY_EDITOR && !COMPILER_UDONSHARP
-using UnityEditor;
-using UnityEditorInternal;
-using UdonSharpEditor;
-#endif
+using VRC.SDKBase;
 
 namespace UdonSharp.Video
 {
-    [AddComponentMenu("Udon Sharp/Video/M Video Player")]
+    [AddComponentMenu("Udon Sharp/Video/USharp Video Player")]
+    [UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
     public class USharpVideoPlayer : UdonSharpBehaviour
     {
-        public VRCUnityVideoPlayer unityVideoPlayer;
-        public VRCAVProVideoPlayer avProVideoPlayer;
-        public Renderer screenRenderer;
-        public MeshRenderer streamRTSource;
-
-        RenderTexture _videoRenderTex;
+        // Video player references
+        VideoPlayerManager _videoPlayerManager;
 
         [Tooltip("Whether to allow video seeking with the progress bar on the video")]
+        [PublicAPI]
         public bool allowSeeking = true;
-
+        
         [Tooltip("If enabled defaults to unlocked so anyone can put in a URL")]
-        public bool defaultUnlocked = false;
+        public bool defaultUnlocked = true;
+
+        [Tooltip("If enabled allows the instance creator to always control the video player regardless of if they are master or not")]
+        [PublicAPI]
+        public bool allowInstanceCreatorControl = true;
         
         [Tooltip("How often the video player should check if it is more than Sync Threshold out of sync with the video time")]
+        [PublicAPI]
         public float syncFrequency = 5.0f;
         [Tooltip("How many seconds desynced from the owner the client needs to be to trigger a resync")]
-        public float syncThreshold = 0.5f;
+        [PublicAPI]
+        public float syncThreshold = 0.75f;
         
-        [Tooltip("This list of videos plays sequentially on world load until someone puts in a video")]
-        public VRCUrl[] playlist;
+        [Range(0f, 1f)]
+        [Tooltip("The default volume for the volume slider on the video player")]
+        public float defaultVolume = 0.5f;
 
-        public VRCUrlInputField inputField;
+        [Tooltip("The max range of the audio sources")]
+        public float audioRange = 40f;
 
-        public Text urlText;
-        public Text urlPlaceholderText;
-        public GameObject masterLockedIcon;
-        public Graphic lockGraphic;
-        public GameObject masterUnlockedIcon;
-        public GameObject pauseStopIcon;
-        public GameObject pauseIcon;
-        public GameObject stopIcon;
+        /// <summary>
+        /// Local offset from the network time to sync the video
+        /// Can be used for things like making a video player sync up with someone singing
+        /// </summary>
+        [PublicAPI, System.NonSerialized]
+        public double localSyncOffset = 0f;
+        
+        [Tooltip("List of urls to play automatically when the world is loaded until someone puts in another URL")]
+        public VRCUrl[] playlist = new VRCUrl[0];
 
-        public GameObject playIcon;
-        public Text statusText;
-        public Text statusTextDropShadow;
-        public Slider videoProgressSlider;
-        public SyncModeController syncModeController;
+        [Tooltip("Should default to the stream player? This is usually used when you want to put a live stream in the default playlist.")]
+        public bool defaultStreamMode = false;
 
-        // Info panel elements
-        public Text masterTextField;
-        public Text videoOwnerTextField;
-        public InputField currentVideoField;
-        public InputField lastVideoField;
-        public GameObject masterCheckObj;
+        [Tooltip("If the default playlist should loop")]
+        [PublicAPI]
+        public bool loopPlaylist = false;
 
+        [Tooltip("If the default playlist should be shuffled upon world load")]
+        public bool shufflePlaylist = false;
+
+        /// <summary>
+        /// The URL that we should currently be playing and that other people are playing
+        /// </summary>
         [UdonSynced]
-        VRCUrl _syncedURL;
+        VRCUrl _syncedURL = VRCUrl.Empty;
 
+        /// <summary>
+        /// The video sequence identifier, gets incremented whenever a new video is put in. Used to determine in combination with _currentVideoIdx if we need to load the new URL
+        /// </summary>
         [UdonSynced]
-        int _videoNumber;
-        int _loadedVideoNumber;
+        int _syncedVideoIdx;
+        int _currentVideoIdx;
 
-        BaseVRCVideoPlayer _currentPlayer;
-
+        /// <summary>
+        /// If we're locked so only the master may put in URLs
+        /// </summary>
         [UdonSynced]
-        bool _ownerPlaying;
-        [UdonSynced]
-        float _videoStartNetworkTime;
-        [UdonSynced]
-        bool _ownerPaused = false;
-        bool _locallyPaused = false;
-
-        bool _waitForSync;
-        float _lastSyncTime;
-
-        [UdonSynced]
-        bool _masterOnly = true;
-        bool _masterOnlyLocal = true;
-        bool _needsOwnerTransition = false;
+        bool _isMasterOnly = true;
 
         [UdonSynced]
         int _nextPlaylistIndex = 0;
 
-        string _statusStr = "";
+        [UdonSynced]
+        double _videoStartNetworkTime;
+        double _localVideoStartTime;
 
-        const int MAX_RETRY_COUNT = 1;
-        const float RETRY_TIMEOUT = 10f;
+        [UdonSynced]
+        long _networkTimeStart;
+        System.DateTime _localNetworkTimeStart;
+
+        [UdonSynced]
+        bool _ownerPlaying;
+
+        [UdonSynced]
+        bool _ownerPaused;
+        bool _locallyPaused;
+
+        [UdonSynced]
+        bool _loopVideo = false;
+        bool _localLoopVideo = false;
+
+        [UdonSynced]
+        int _shuffleSeed;
+
+        // The last unpaused time in the video
+        float _lastVideoTime;
+
+        VideoControlHandler[] _registeredControlHandlers;
+        VideoScreenHandler[] _registeredScreenHandlers;
+        UdonSharpBehaviour[] _registeredCallbackReceivers;
+
+        // Video loading state
+        const int MAX_RETRY_COUNT = 4;
+        const float DEFAULT_RETRY_TIMEOUT = 40.0f;
+        const float RATE_LIMIT_RETRY_TIMEOUT = 5.5f;
+        const float VIDEO_ERROR_RETRY_TIMEOUT = 5f;
+        const float PLAYLIST_ERROR_RETRY_COUNT = 6;
 
         bool _loadingVideo = false;
-        float _currentLoadingTime = 0f;
+        float _currentLoadingTime = 0f; // Counts down to 0 while loading
         int _currentRetryCount = 0;
         float _videoTargetStartTime = 0f;
+        int _playlistErrorCount = 0;
 
-        const int PLAYER_MODE_VIDEO = 0;
-        const int PLAYER_MODE_STREAM = 1;
-        const int PLAYER_MODE_KARAOKE = 2; // Todo
+        bool _waitForSync = false;
 
-        [UdonSynced, System.NonSerialized] // I'd love to use byte, sbyte, or even short for these, but UdonSync is broken and puts Int32's into these regardless of the type
-        public int currentPlayerMode = PLAYER_MODE_VIDEO;
-        int _localPlayerMode = PLAYER_MODE_VIDEO;
+        // Player mode tracking
+        const int PLAYER_MODE_UNITY = 0;
+        const int PLAYER_MODE_AVPRO = 1;
 
-        private void Start()
+        [UdonSynced]
+        int currentPlayerMode = PLAYER_MODE_UNITY;
+        int _localPlayerMode = PLAYER_MODE_UNITY;
+
+        bool _videoSync = true;
+
+        void Start()
         {
-            unityVideoPlayer.Loop = false;
-            unityVideoPlayer.Stop();
-            avProVideoPlayer.Loop = false;
-            avProVideoPlayer.Stop();
+            _videoPlayerManager = GetVideoManager();
+            _videoPlayerManager.Start();
 
-            _currentPlayer = unityVideoPlayer;
-            //_currentPlayer = avProVideoPlayer;
-            _videoRenderTex = (RenderTexture)screenRenderer.sharedMaterial.GetTexture("_EmissionMap");
+            if (_registeredControlHandlers == null)
+                _registeredControlHandlers = new VideoControlHandler[0];
 
-            if (defaultUnlocked && Networking.IsOwner(gameObject))
-            {
-                _masterOnly = false;
-                _masterOnlyLocal = false;
-            }
-
-            PlayNextVideoFromPlaylist();
-#if !UNITY_EDITOR // Causes null ref exceptions so just exclude it from the editor
-            masterTextField.text = Networking.GetOwner(masterCheckObj).displayName;
-#endif
-        }
-
-        private void OnDisable()
-        {
-#if COMPILER_UDONSHARP
-            screenRenderer.sharedMaterial.SetTexture("_EmissionMap", _videoRenderTex);
-            screenRenderer.sharedMaterial.SetInt("_IsAVProInput", 0);
-#endif
-        }
-
-        void TakeOwnership()
-        {
-            if (Networking.IsMaster || !_masterOnly)
-            {
-                if (!Networking.IsOwner(gameObject))
-                {
-                    Networking.SetOwner(Networking.LocalPlayer, gameObject);
-                }
-            }
-        }
-
-        void StartVideoLoad(VRCUrl url)
-        {
-            Debug.Log("[USharpVideo] Started video load");
-            _statusStr = "Loading video...";
-            SetStatusText(_statusStr);
-            _loadingVideo = true;
-            _currentLoadingTime = 0f;
-            _currentRetryCount = 0;
-            _currentPlayer.LoadURL(url);
-        }
-
-        void PlayVideo(VRCUrl url, bool disablePlaylist)
-        {
-            bool isOwner = Networking.IsOwner(gameObject);
-
-            if (!isOwner && !Networking.IsMaster && _masterOnly)
-                return;
-            
-            if (_syncedURL != null && url.Get() == "")
-                return;
-
-            if (!isOwner)
-            {
-                Networking.SetOwner(Networking.LocalPlayer, gameObject);
-            }
-
-            if (disablePlaylist)
-            {
-                // -1 means we have stopped using the playlist since we had manual input
-                _nextPlaylistIndex = -1;
-            }
-
-            StopVideo();
-
-            _syncedURL = url;
-            inputField.SetUrl(VRCUrl.Empty);
-
-            if (isOwner)
-                _videoNumber++;
-            else // Add two to avoid having conflicts where the old owner increases the count
-                _videoNumber += 2;
-
-            _loadedVideoNumber = _videoNumber;
-            StartVideoLoad(_syncedURL);
-            _currentPlayer.Stop();
-            _ownerPlaying = false;
-            _locallyPaused = _ownerPaused = false;
-
-            _videoStartNetworkTime = float.MaxValue;
+            _registeredCallbackReceivers = new UdonSharpBehaviour[0];
 
             if (Networking.IsOwner(gameObject))
             {
-                // Attempt to parse out a start time from YouTube links with t= or start=
-                string urlStr = url.Get();
+                if (defaultUnlocked)
+                    _isMasterOnly = false;
 
-                if (currentPlayerMode != PLAYER_MODE_STREAM &&
-                    (urlStr.Contains("youtube.com/watch") ||
-                     urlStr.Contains("youtu.be/")))
+                if (defaultStreamMode)
                 {
-                    int tIndex = -1;
-
-                    tIndex = urlStr.IndexOf("?t=");
-
-                    if (tIndex == -1) tIndex = urlStr.IndexOf("&t=");
-                    if (tIndex == -1) tIndex = urlStr.IndexOf("?start=");
-                    if (tIndex == -1) tIndex = urlStr.IndexOf("&start=");
-
-                    if (tIndex != -1)
-                    {
-                        char[] urlArr = urlStr.ToCharArray();
-                        int numIdx = urlStr.IndexOf('=', tIndex) + 1;
-
-                        string intStr = "";
-
-                        while (numIdx < urlArr.Length)
-                        {
-                            char currentChar = urlArr[numIdx];
-                            if (!char.IsNumber(currentChar))
-                                break;
-
-                            intStr += currentChar;
-
-                            ++numIdx;
-                        }
-
-                        if (intStr.Length > 0)
-                        {
-                            int secondsCount = 0;
-                            if (int.TryParse(intStr, out secondsCount))
-                                _videoTargetStartTime = secondsCount;
-                            else
-                                _videoTargetStartTime = 0f;
-                        }
-                        else
-                            _videoTargetStartTime = 0f;
-                    }
-                    else
-                        _videoTargetStartTime = 0f;
-                }
-                else
-                    _videoTargetStartTime = 0f;
-            }
-            else
-                _videoTargetStartTime = 0f;
-            
-            Debug.Log("[USharpVideo] Video URL Changed to " + _syncedURL);
-        }
-
-        public void HandleURLInput()
-        {
-            PlayVideo(inputField.GetUrl(), true);
-        }
-
-        void PlayNextVideoFromPlaylist()
-        {
-            if (_nextPlaylistIndex == -1 || playlist.Length == 0 || !Networking.IsOwner(gameObject))
-                return;
-
-            int currentIdx = _nextPlaylistIndex++;
-
-            if (currentIdx >= playlist.Length)
-            {
-                // We reached the end of the playlist
-                _nextPlaylistIndex = -1;
-                return;
-            }
-
-            PlayVideo(playlist[currentIdx], false);
-        }
-
-        public void TriggerLockButton()
-        {
-            if (!Networking.IsMaster)
-                return;
-
-            _masterOnly = _masterOnlyLocal = !_masterOnlyLocal;
-
-            if (_masterOnly && !Networking.IsOwner(gameObject))
-            {
-                _needsOwnerTransition = true;
-                Networking.SetOwner(Networking.LocalPlayer, gameObject);
-            }
-
-            masterLockedIcon.SetActive(_masterOnly);
-            masterUnlockedIcon.SetActive(!_masterOnly);
-        }
-
-        // Pauses videos and stops streams
-        public void TriggerPauseButton()
-        {
-            if (!Networking.IsOwner(gameObject))
-                return;
-
-            _ownerPaused = !_ownerPaused;
-
-            if (currentPlayerMode == PLAYER_MODE_VIDEO ||
-                currentPlayerMode == PLAYER_MODE_KARAOKE)
-            {
-                if (_ownerPaused)
-                {
-                    _currentPlayer.Pause();
-                    _locallyPaused = true;
-                }
-                else
-                    _currentPlayer.Play();
-            }
-            else
-            {
-                if (_ownerPaused)
-                {
-                    _currentPlayer.Pause();
-                    _locallyPaused = true;
-                }
-                else
-                {
-                    _currentPlayer.Play();
-                    _currentPlayer.SetTime(float.MaxValue);
+                    SetPlayerMode(PLAYER_MODE_AVPRO);
+                    _nextPlaylistIndex = 0;
                 }
 
+                _shuffleSeed = Random.Range(0, 10000);
             }
 
-            playIcon.SetActive(_ownerPaused);
-            pauseStopIcon.SetActive(!_ownerPaused);
-        }
+            _lastMasterLocked = _isMasterOnly;
 
-        bool _draggingSlider = false;
+            SetUILocked(_isMasterOnly);
 
-        // Called from the progress bar slider
-        public void OnBeginDrag()
-        {
-            _draggingSlider = true;
-        }
+            _networkTimeStart = Networking.GetNetworkDateTime().Ticks;
+            _localNetworkTimeStart = new System.DateTime(_networkTimeStart, System.DateTimeKind.Utc);
 
-        public void OnEndDrag()
-        {
-            _draggingSlider = false;
-        }
+            PlayNextVideoFromPlaylist();
 
-        public void OnSliderChanged()
-        {
-            if (!_draggingSlider || !allowSeeking)
-                return;
+            SetVolume(defaultVolume);
 
-            if (!Networking.IsOwner(gameObject))
-                return;
-
-            float newSliderValue = videoProgressSlider.value;
-            float newTargetTime = _currentPlayer.GetDuration() * newSliderValue;
-
-            _videoStartNetworkTime = (float)Networking.GetServerTimeInSeconds() - newTargetTime;
-
-            SyncVideo();
-        }
-
-        // Stop video button
-        void StopVideo()
-        {
-            if (!Networking.IsOwner(gameObject))
-                return;
-
-            _videoStartNetworkTime = 0f;
-            _ownerPlaying = false;
-            _currentPlayer.Stop();
-            _syncedURL = VRCUrl.Empty;
-            _locallyPaused = _ownerPaused = false;
-            _draggingSlider = false;
-            _videoTargetStartTime = 0f;
+            // Serialize the default setup state from the master once regardless of if a video has played
+            QueueSerialize();
         }
 
         public override void OnVideoReady()
         {
-            _loadingVideo = false;
-            _currentLoadingTime = 0f;
-            _currentRetryCount = 0;
+            ResetVideoLoad();
+            _playlistErrorCount = 0;
 
-            if (Networking.IsOwner(gameObject)) // The owner plays the video when it is ready
+            if (IsUsingAVProPlayer())
             {
-                _currentPlayer.Play();
+                float duration = _videoPlayerManager.GetDuration();
+
+                if (duration == float.MaxValue || float.IsInfinity(duration) || IsRTSPStream())
+                    _videoSync = false;
+                else
+                    _videoSync = true;
             }
-            else // If the owner is playing the video, Play it and run SyncVideo
+            else
+                _videoSync = true;
+
+            if (_videoSync)
             {
-                if (_ownerPlaying)
+                if (Networking.IsOwner(gameObject))
                 {
-                    _currentPlayer.Play();
-                    SyncVideo();
+                    _waitForSync = false;
+                    _videoPlayerManager.Play();
                 }
                 else
                 {
-                    _waitForSync = true;
+                    if (_ownerPlaying)
+                    {
+                        _waitForSync = false;
+                        _locallyPaused = false;
+                        _videoPlayerManager.Play();
+
+                        SyncVideo();
+                    }
+                    else
+                    {
+                        if (_videoStartNetworkTime == 0f || _videoStartNetworkTime > GetNetworkTime() - _videoPlayerManager.GetDuration()) // Todo: remove the 0f check and see how this actually gets set to 0 while the owner is playing
+                        {
+                            _waitForSync = true;
+                            SetStatusText("Waiting for owner sync...");
+                        }
+                        else
+                        {
+                            _waitForSync = false;
+                            SyncVideo();
+                            SetStatusText("");
+                            LogMessage($"Loaded into world with complete video, duration: {_videoPlayerManager.GetDuration()}, start net time: {_videoStartNetworkTime}, subtracted net time {GetNetworkTime() - _videoPlayerManager.GetDuration()}");
+                        }
+                    }
                 }
+            }
+            else // Live streams should start asap
+            {
+                _waitForSync = false;
+                _videoPlayerManager.Play();
             }
         }
 
@@ -414,96 +236,338 @@ namespace UdonSharp.Video
         {
             if (Networking.IsOwner(gameObject))
             {
-                if (_locallyPaused)
-                {
-                    _videoStartNetworkTime = (float)Networking.GetServerTimeInSeconds() - _currentPlayer.GetTime();
-                }
-                else
-                {
-                    _videoStartNetworkTime = (float)Networking.GetServerTimeInSeconds() - _videoTargetStartTime;
-                }
+                SetPausedInternal(false, false);
 
-                _ownerPaused = _locallyPaused = false;
+                _videoStartNetworkTime = GetNetworkTime() - _videoTargetStartTime;
+                _videoPlayerManager.SetTime(_videoTargetStartTime);
+
                 _ownerPlaying = true;
+
+                QueueSerialize();
+
+                LogMessage($"Started video: {_syncedURL}");
             }
             else if (!_ownerPlaying) // Watchers pause and wait for sync from owner
             {
-                _currentPlayer.Pause();
+                _videoPlayerManager.Pause();
                 _waitForSync = true;
             }
+            else
+            {
+                SetPausedInternal(_ownerPaused, false);
+                SyncVideo();
+                LogMessage($"Started video: {_syncedURL}");
+            }
 
-            _statusStr = "";
-            _draggingSlider = false;
+            SetStatusText("");
 
-            lastVideoField.text = currentVideoField.text;
-            currentVideoField.text = _syncedURL.Get();
-
-            _currentPlayer.SetTime(_videoTargetStartTime);
             _videoTargetStartTime = 0f;
 
-#if !UNITY_EDITOR // Causes null ref exceptions so just exclude it from the editor
-            videoOwnerTextField.text = Networking.GetOwner(gameObject).displayName;
-#endif
+            SetUIPaused(_locallyPaused);
+
+            UpdateRenderTexture();
+
+            SendCallback("OnUSharpVideoPlay");
         }
 
-        public override void OnPlayerLeft(VRCPlayerApi player)
+        bool IsRTSPStream()
         {
-            masterTextField.text = Networking.GetOwner(masterCheckObj).displayName;
+            string urlStr = _syncedURL.ToString();
+
+            return IsUsingAVProPlayer() &&
+                   _videoPlayerManager.GetDuration() == 0f && 
+                   IsRTSPURL(urlStr);
+        }
+
+        bool IsRTSPURL(string urlStr)
+        {
+            return urlStr.StartsWith("rtsp://", System.StringComparison.OrdinalIgnoreCase) ||
+                   urlStr.StartsWith("rtmp://", System.StringComparison.OrdinalIgnoreCase) || // RTMP isn't really supported in VRC's context and it's probably never going to be, but we'll just be safe here
+                   urlStr.StartsWith("rtspt://", System.StringComparison.OrdinalIgnoreCase) || // rtsp over TCP
+                   urlStr.StartsWith("rtspu://", System.StringComparison.OrdinalIgnoreCase); // rtsp over UDP
         }
 
         public override void OnVideoEnd()
         {
-            // When the video ends on Owner, set time to 0 and playing to false
-            if (Networking.IsOwner(gameObject))
+            // VRC falsely throws OnVideoEnd instantly on RTSP streams since they report 0 length
+            if (!IsRTSPStream())
             {
-                _videoStartNetworkTime = 0f;
-                _ownerPlaying = false;
-            }
+                if (Networking.IsOwner(gameObject))
+                {
+                    _ownerPlaying = false;
+                    _ownerPaused = _locallyPaused = false;
 
-            PlayNextVideoFromPlaylist();
+                    SetStatusText("");
+                    SetUIPaused(false);
+
+                    PlayNextVideoFromPlaylist();
+                    QueueSerialize();
+                }
+
+                SendCallback("OnUSharpVideoEnd");
+
+                UpdateRenderTexture();
+            }
+        }
+
+        // Workaround for bug that needs to be addressed in U# where calling built in methods with parameters will get the parameters overwritten when called from other UdonBehaviours
+        public void _OnVideoErrorCallback(VideoError videoError)
+        {
+            OnVideoError(videoError);
         }
 
         public override void OnVideoError(VideoError videoError)
         {
-            _loadingVideo = false;
-            _currentLoadingTime = 0f;
-            _currentRetryCount = 0;
+            if (videoError == VideoError.RateLimited)
+            {
+                SetStatusText("Rate limited, retrying...");
+                LogWarning("Rate limited, retrying...");
+                _currentLoadingTime = RATE_LIMIT_RETRY_TIMEOUT;
+                return;
+            }
+            else if (videoError == VideoError.PlayerError)
+            {
+                SetStatusText("Video error, retrying...");
+                LogError("Video player error when trying to load " + _syncedURL);
+                _loadingVideo = true; // Apparently OnVideoReady gets fired erroneously??
+                _currentLoadingTime = VIDEO_ERROR_RETRY_TIMEOUT;
+                return;
+            }
+
+            ResetVideoLoad();
             _videoTargetStartTime = 0f;
 
-            _currentPlayer.Stop();
-            Debug.LogError("[USharpVideo] Video failed: " + _syncedURL);
+            _videoPlayerManager.Stop();
+
+            LogError($"Video '{_syncedURL}' failed to play with error {videoError}");
 
             switch (videoError)
             {
-                case VideoError.RateLimited:
-                    _statusStr = "Rate limited, try again in a few seconds";
-                    break;
-                case VideoError.PlayerError:
-                    _statusStr = "Video player error";
-                    break;
                 case VideoError.InvalidURL:
-                    _statusStr = "Invalid URL";
+                    SetStatusText("Invalid URL");
                     break;
                 case VideoError.AccessDenied:
-                    _statusStr = "Video blocked, enable untrusted URLs";
+                    SetStatusText("Video blocked, enabled untrusted URLs");
                     break;
                 default:
-                    _statusStr = "Failed to load video";
+                    SetStatusText("Failed to load video");
                     break;
             }
-            SetStatusText(_statusStr);
+
+            ++_playlistErrorCount;
             PlayNextVideoFromPlaylist();
+
+            SendCallback("OnUSharpVideoError");
+        }
+
+        public override void OnVideoPause() { }
+        public override void OnVideoPlay() { }
+
+        public override void OnVideoLoop()
+        {
+            _localVideoStartTime = _videoStartNetworkTime = GetNetworkTime();
+
+            QueueSerialize();
+        }
+
+        float _lastCurrentTime;
+
+        private void Update()
+        {
+            if (_loadingVideo)
+                UpdateVideoLoad();
+
+            if (_locallyPaused)
+            {
+                if (IsInVideoMode())
+                {
+                    // Keep the target time the same while paused
+                    _videoStartNetworkTime = GetNetworkTime() - _videoPlayerManager.GetTime();
+                }
+            }
+            else
+                _lastCurrentTime = _videoPlayerManager.GetTime();
+
+            if (Networking.IsOwner(gameObject) || !_waitForSync)
+            {
+                SyncVideoIfTime();
+            }
+            else if (_ownerPlaying)
+            {
+                _videoPlayerManager.Play();
+                LogMessage($"Started video: {_syncedURL}");
+                _waitForSync = false;
+                SyncVideo();
+            }
+            
+            UpdateRenderTexture(); // Needed because AVPro can swap textures whenever
+        }
+
+        //public override bool OnOwnershipRequest(VRCPlayerApi requestingPlayer, VRCPlayerApi requestedOwner)
+        //{
+        //    return !_isMasterOnly || requestedOwner.isMaster || requestedOwner.isInstanceOwner;
+        //}
+
+        bool _lastMasterLocked = false;
+
+        public override void OnDeserialization()
+        {
+            if (Networking.IsOwner(gameObject))
+                return;
+            
+            _localNetworkTimeStart = new System.DateTime(_networkTimeStart, System.DateTimeKind.Utc);
+
+            SetPausedInternal(_ownerPaused, false);
+            SetLoopingInternal(_loopVideo);
+
+            if (_localPlayerMode != currentPlayerMode)
+                SetPlayerMode(currentPlayerMode);
+
+            if (_isMasterOnly != _lastMasterLocked)
+            {
+                SetUILocked(_isMasterOnly);
+                SendCallback("OnUSharpVideoMasterLockChange");
+                _lastMasterLocked = _isMasterOnly;
+            }
+
+            if (_currentVideoIdx != _syncedVideoIdx)
+            {
+                _currentVideoIdx = _syncedVideoIdx;
+
+                _videoPlayerManager.Stop();
+                StartVideoLoad(_syncedURL);
+
+                _localVideoStartTime = _videoStartNetworkTime;
+
+                LogMessage("Playing synced " + _syncedURL);
+            }
+            else if (_videoStartNetworkTime != _localVideoStartTime) // Detect seeks
+            {
+                _localVideoStartTime = _videoStartNetworkTime;
+                SyncVideo();
+            }
+
+            if (!_locallyPaused && IsInVideoMode())
+            {
+                float duration = GetVideoManager().GetDuration();
+                
+                // If the owner did a seek on the video after it finished, we need to start playing it again
+                if (GetNetworkTime() - _videoStartNetworkTime < duration - 3f)
+                    _videoPlayerManager.Play();
+            }
+
+            SendCallback("OnUSharpVideoDeserialization");
+        }
+
+        public override void OnOwnershipTransferred(VRCPlayerApi player)
+        {
+            SendUIOwnerUpdate();
+
+            SendCallback("OnUSharpVideoOwnershipChange");
+        }
+
+        // Supposedly there's some case where late joiners don't receive data, so do a serialization just in case here.
+        //public override void OnPlayerJoined(VRCPlayerApi player)
+        //{
+        //    if (!player.isLocal)
+        //        QueueSerialize();
+        //}
+
+        /// <summary>
+        /// Stops playback of the video completely and clears data
+        /// </summary>
+        [PublicAPI]
+        public void StopVideo()
+        {
+            if (!Networking.IsOwner(gameObject))
+                return;
+
+            _videoStartNetworkTime = 0f;
+            _ownerPlaying = false;
+            _locallyPaused = _ownerPaused = false;
+            _videoTargetStartTime = 0f;
+            _lastCurrentTime = 0f;
+
+            SetUIPaused(false);
+            ResetVideoLoad();
+
+            QueueSerialize();
+
+            SendCallback("OnUSharpVideoStop");
+        }
+
+        /// <summary>
+        /// Play a video with the specified URL, only works if the player is allowed to use the video player
+        /// </summary>
+        /// <param name="url"></param>
+        [PublicAPI]
+        public void PlayVideo(VRCUrl url)
+        {
+            PlayVideoInternal(url, true);
+        }
+
+        /// <summary>
+        /// Returns the URL that the video player currently has loaded
+        /// </summary>
+        /// <returns></returns>
+        [PublicAPI]
+        public VRCUrl GetCurrentURL() => _syncedURL;
+
+        void PlayVideoInternal(VRCUrl url, bool stopPlaylist)
+        {
+            if (!CanControlVideoPlayer())
+                return;
+
+            string urlStr = url.Get();
+
+            if (!ValidateURL(urlStr))
+                return;
+
+            bool wasOwner = Networking.IsOwner(gameObject);
+
+            TakeOwnership();
+
+            if (stopPlaylist)
+                _nextPlaylistIndex = -1;
+            
+            _videoPlayerManager.Stop();
+            StopVideo();
+
+            _syncedURL = url;
+
+            if (wasOwner)
+                ++_syncedVideoIdx;
+            else // Add two to avoid having conflicts where the old owner increases the count
+                _syncedVideoIdx += 2;
+
+            _currentVideoIdx = _syncedVideoIdx;
+            
+            StartVideoLoad(url);
+            _ownerPlaying = false;
+
+            _videoTargetStartTime = GetVideoStartTime(urlStr);
+
+            QueueSerialize();
+
+            SendCallback("OnUSharpVideoLoadStart");
+        }
+
+        void ResetVideoLoad()
+        {
+            _loadingVideo = false;
+            _currentRetryCount = 0;
+            _currentLoadingTime = DEFAULT_RETRY_TIMEOUT;
         }
 
         void UpdateVideoLoad()
         {
-            if (_loadingVideo)
+            //if (_loadingVideo) // Checked in caller now since it's cheaper
             {
-                _currentLoadingTime += Time.deltaTime;
+                _currentLoadingTime -= Time.deltaTime;
 
-                if (_currentLoadingTime > RETRY_TIMEOUT)
+                if (_currentLoadingTime <= 0f)
                 {
-                    _currentLoadingTime = 0f;
+                    _currentLoadingTime = DEFAULT_RETRY_TIMEOUT;
 
                     if (++_currentRetryCount > MAX_RETRY_COUNT)
                     {
@@ -511,404 +575,850 @@ namespace UdonSharp.Video
                     }
                     else
                     {
-                        Debug.Log("[USharpVideo] Retrying load");
-                        _currentPlayer.LoadURL(_syncedURL);
+                        LogMessage("Retrying load");
+
+                        SetStatusText("Retrying load...");
+                        _videoPlayerManager.LoadURL(_syncedURL);
                     }
                 }
             }
         }
 
-        public void SetVideoSyncMode()
-        {
-            if (_masterOnly && !Networking.IsMaster)
-                return;
-
-            TakeOwnership();
-
-            currentPlayerMode = PLAYER_MODE_VIDEO;
-
-            ChangePlayerMode();
-        }
-
-        public void SetStreamSyncMode()
-        {
-            if (_masterOnly && !Networking.IsMaster)
-                return;
-
-            TakeOwnership();
-
-            currentPlayerMode = PLAYER_MODE_STREAM;
-
-            ChangePlayerMode();
-        }
-
-        void ChangePlayerMode()
-        {
-            if (currentPlayerMode == _localPlayerMode)
-                return;
-
-            _nextPlaylistIndex = -1;
-            _currentPlayer.Stop();
-            _locallyPaused = _ownerPaused = false;
-
-            Material screenMaterial = screenRenderer.sharedMaterial;
-
-            switch (currentPlayerMode)
-            {
-                case PLAYER_MODE_VIDEO:
-                    _currentPlayer = unityVideoPlayer;
-                    screenMaterial.SetTexture("_EmissionMap", _videoRenderTex);
-                    screenMaterial.SetInt("_IsAVProInput", 0);
-                    syncModeController.SetVideoVisual();
-                    pauseIcon.SetActive(true);
-                    stopIcon.SetActive(false);
-                    videoProgressSlider.gameObject.SetActive(true);
-                    break;
-                case PLAYER_MODE_STREAM:
-                    _currentPlayer = avProVideoPlayer;
-                    screenMaterial.SetTexture("_EmissionMap", streamRTSource.sharedMaterial.GetTexture("_MainTex"));
-                    screenMaterial.SetInt("_IsAVProInput", 1);
-                    syncModeController.SetStreamVisual();
-                    pauseIcon.SetActive(false);
-                    stopIcon.SetActive(true);
-                    videoProgressSlider.gameObject.SetActive(false);
-                    break;
-            }
-
-            _localPlayerMode = currentPlayerMode;
-        }
-
-        int _deserializeCounter;
-
-        public override void OnDeserialization()
-        {
-            // Load new video when _videoNumber is changed
-            if (Networking.IsOwner(gameObject))
-                return;
-
-            masterLockedIcon.SetActive(_masterOnly);
-            masterUnlockedIcon.SetActive(!_masterOnly);
-            playIcon.SetActive(_ownerPaused);
-            pauseStopIcon.SetActive(!_ownerPaused);
-
-            // Needed to prevent "rewinding" behaviour of Udon synced strings/VRCUrl's where, when switching ownership the string will be populated with the second to last value locally observed.
-            if (_deserializeCounter < 10)
-            {
-                _deserializeCounter++;
-                return;
-            }
-
-            if (_localPlayerMode != currentPlayerMode)
-                ChangePlayerMode();
-
-            if (!_ownerPaused && _locallyPaused)
-            {
-                Debug.Log("[USharpVideo] Play");
-                _currentPlayer.Play();
-                if (currentPlayerMode == PLAYER_MODE_STREAM)
-                    _currentPlayer.SetTime(float.MaxValue);
-
-                _locallyPaused = false;
-            }
-
-            if (_videoNumber == _loadedVideoNumber)
-                return;
-
-            _currentPlayer.Stop();
-            StartVideoLoad(_syncedURL);
-
-            SyncVideo();
-
-            _loadedVideoNumber = _videoNumber;
-
-            Debug.Log("[USharpVideo] Playing synced " + _syncedURL);
-        }
-
-        public override void OnPreSerialization()
-        {
-            _deserializeCounter = 0;
-        }
-
-        readonly Color redGraphicColor = new Color(0.632f, 0.19f, 0.19f);
-        readonly Color whiteGraphicColor = new Color(0.9433f, 0.9433f, 0.9433f);
-
-        private void Update()
-        {
-            bool isOwner = Networking.IsOwner(gameObject);
-
-            // These need to be moved to OnOwnershipTransferred when it's fixed.
-            if (_masterOnly && !Networking.IsMaster)
-            {
-                urlPlaceholderText.text = $"Only the master {Networking.GetOwner(gameObject).displayName} may add URLs";
-                inputField.readOnly = true;
-                lockGraphic.color = redGraphicColor;
-            }
-            else if (!_masterOnly)
-            {
-                urlPlaceholderText.text = "Enter Video URL... (anyone)";
-                inputField.readOnly = false;
-                lockGraphic.color = whiteGraphicColor;
-            }
-            else
-            {
-                urlPlaceholderText.text = "Enter Video URL...";
-                inputField.readOnly = false;
-
-                if (isOwner)
-                    lockGraphic.color = whiteGraphicColor;
-                else
-                    lockGraphic.color = redGraphicColor;
-            }
-
-            if (_localPlayerMode != currentPlayerMode)
-                ChangePlayerMode();
-
-            float currentTime = _currentPlayer.GetTime();
-
-            bool isVideoPlayMode = currentPlayerMode == PLAYER_MODE_VIDEO;
-
-            if (isVideoPlayMode)
-            {
-                float duration = _currentPlayer.GetDuration();
-                string totalTimeStr = System.TimeSpan.FromSeconds(duration).ToString(@"hh\:mm\:ss");
-
-                if (_draggingSlider && string.IsNullOrEmpty(_statusStr))
-                {
-                    string currentTimeStr = System.TimeSpan.FromSeconds(videoProgressSlider.value * duration).ToString(@"hh\:mm\:ss");
-                    SetStatusText(currentTimeStr + "/" + totalTimeStr);
-                }
-                else
-                {
-                    if (string.IsNullOrEmpty(_statusStr))
-                    {
-                        string currentTimeStr = System.TimeSpan.FromSeconds(currentTime).ToString(@"hh\:mm\:ss");
-                        SetStatusText(currentTimeStr + "/" + totalTimeStr);
-                    }
-
-                    videoProgressSlider.value = Mathf.Clamp01(currentTime / (duration > 0f ? duration : 1f));
-                }
-            }
-            else // Stream player
-            {
-                SetStatusText(_statusStr);
-
-                screenRenderer.sharedMaterial.SetTexture("_EmissionMap", streamRTSource.sharedMaterial.GetTexture("_MainTex"));
-            }
-
-            if (_ownerPaused)
-            {
-                if (isVideoPlayMode)
-                {
-                    // Keep the target time the same while paused
-                    _videoStartNetworkTime = (float)Networking.GetServerTimeInSeconds() - currentTime;
-                }
-
-                if (currentPlayerMode == PLAYER_MODE_VIDEO || 
-                    currentPlayerMode == PLAYER_MODE_KARAOKE)
-                    _currentPlayer.Pause();
-                else
-                    _currentPlayer.Pause();
-
-                _locallyPaused = true;
-            }
-
-            UpdateVideoLoad();
-
-            if (isOwner || !_waitForSync)
-            {
-                if (isOwner && _needsOwnerTransition)
-                {
-                    //StopVideo();
-                    _needsOwnerTransition = false;
-                    _masterOnly = _masterOnlyLocal;
-                }
-
-                SyncVideoIfTime();
-
-                return;
-            }
-
-            if (!_ownerPlaying)
-                return;
-
-            _currentPlayer.Play();
-
-            _waitForSync = false;
-
-            SyncVideo();
-        }
+        float _lastSyncTime;
 
         void SyncVideoIfTime()
         {
-            if (Time.realtimeSinceStartup - _lastSyncTime > syncFrequency)
+            float timeSinceStartup = Time.realtimeSinceStartup;
+
+            if (timeSinceStartup - _lastSyncTime > syncFrequency)
             {
-                _lastSyncTime = Time.realtimeSinceStartup;
+                _lastSyncTime = timeSinceStartup;
                 SyncVideo();
             }
         }
 
-        void SyncVideo()
+        /// <summary>
+        /// Syncs the video time if it's too far diverged from the network time
+        /// </summary>
+        [PublicAPI]
+        public void SyncVideo()
         {
-            if (currentPlayerMode == PLAYER_MODE_VIDEO)
+            if (IsInVideoMode())
             {
-                float offsetTime = Mathf.Clamp((float)Networking.GetServerTimeInSeconds() - _videoStartNetworkTime, 0f, _currentPlayer.GetDuration());
+                float offsetTime = Mathf.Clamp((float)(GetNetworkTime() - _videoStartNetworkTime), 0f, _videoPlayerManager.GetDuration());
 
-                if (Mathf.Abs(_currentPlayer.GetTime() - offsetTime) > syncThreshold)
+                if (Mathf.Abs(_videoPlayerManager.GetTime() - offsetTime) > syncThreshold)
                 {
-                    _currentPlayer.SetTime(offsetTime);
-                    //Debug.LogFormat("[USharpVideo] Syncing Video to {0:N2}", offsetTime);
+                    _videoPlayerManager.SetTime(offsetTime);
+                    LogMessage($"Syncing video to {offsetTime:N2}");
                 }
             }
         }
 
-        void SetStatusText(string value)
+        /// <summary>
+        /// Syncs the video time regardless of how far diverged it is from the network time, can be used as a less aggressive audio resync in some cases
+        /// </summary>
+        [PublicAPI]
+        public void ForceSyncVideo()
         {
-            statusText.text = value;
-            statusTextDropShadow.text = value;
-        }
-    }
-
-#if UNITY_EDITOR && !COMPILER_UDONSHARP
-    [CustomEditor(typeof(USharpVideoPlayer))]
-    internal class USharpVideoPlayerInspector : Editor
-    {
-        static bool _showUIReferencesDropdown = false;
-
-        SerializedProperty unityVideoPlayerProperty;
-        SerializedProperty avProVideoPlayerProperty;
-
-        SerializedProperty screenRendererProperty;
-        SerializedProperty streamRTSourceProperty;
-
-        ReorderableList playlistList;
-
-        SerializedProperty allowSeekProperty;
-        SerializedProperty defaultUnlockedProperty;
-        SerializedProperty syncFrequencyProperty;
-        SerializedProperty syncThresholdProperty;
-        SerializedProperty playlistProperty;
-
-        // UI fields
-        SerializedProperty inputFieldProperty;
-        SerializedProperty urlTextProperty;
-        SerializedProperty urlPlaceholderTextProperty;
-        SerializedProperty masterLockedIconProperty;
-        SerializedProperty masterUnlockedIconProperty;
-        SerializedProperty lockGraphicProperty;
-        SerializedProperty pauseStopIconProperty;
-        SerializedProperty pauseIconProperty;
-        SerializedProperty stopIconProperty;
-        SerializedProperty playIconProperty;
-        SerializedProperty statusTextProperty;
-        SerializedProperty statusTextDropShadowProperty;
-        SerializedProperty videoProgressSlider;
-
-        // Info panel fields
-        SerializedProperty masterTextFieldProperty;
-        SerializedProperty videoOwnerTextFieldProperty;
-        SerializedProperty currentVideoFieldProperty;
-        SerializedProperty lastVideoFieldProperty;
-        SerializedProperty masterCheckObjProperty;
-
-        private void OnEnable()
-        {
-            unityVideoPlayerProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.unityVideoPlayer));
-            avProVideoPlayerProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.avProVideoPlayer));
-
-            screenRendererProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.screenRenderer));
-            streamRTSourceProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.streamRTSource));
-
-            allowSeekProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.allowSeeking));
-            defaultUnlockedProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.defaultUnlocked));
-            syncFrequencyProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.syncFrequency));
-            syncThresholdProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.syncThreshold));
-
-            playlistProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.playlist));
-
-            // UI Fields
-            inputFieldProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.inputField));
-            urlTextProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.urlText));
-            urlPlaceholderTextProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.urlPlaceholderText));
-            masterLockedIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.masterLockedIcon));
-            masterUnlockedIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.masterUnlockedIcon));
-            lockGraphicProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.lockGraphic));
-            pauseStopIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.pauseStopIcon));
-            pauseIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.pauseIcon));
-            stopIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.stopIcon));
-            playIconProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.playIcon));
-            statusTextProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.statusText));
-            statusTextDropShadowProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.statusTextDropShadow));
-            videoProgressSlider = serializedObject.FindProperty(nameof(USharpVideoPlayer.videoProgressSlider));
-
-            masterTextFieldProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.masterTextField));
-            videoOwnerTextFieldProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.videoOwnerTextField));
-            currentVideoFieldProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.currentVideoField));
-            lastVideoFieldProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.lastVideoField));
-            masterCheckObjProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.masterCheckObj));
-
-            // Playlist
-            playlistList = new ReorderableList(serializedObject, playlistProperty, true, true, true, true);
-            playlistList.drawElementCallback = (Rect rect, int index, bool isActive, bool isFocused) =>
+            if (IsInVideoMode())
             {
-                Rect testFieldRect = new Rect(rect.x, rect.y + 2, rect.width, EditorGUIUtility.singleLineHeight);
-
-                EditorGUI.PropertyField(testFieldRect, playlistList.serializedProperty.GetArrayElementAtIndex(index), label: new GUIContent());
-            };
-            playlistList.drawHeaderCallback = (Rect rect) => { EditorGUI.LabelField(rect, "Default Playlist URLs"); };
+                float offsetTime = Mathf.Clamp((float)(GetNetworkTime() - _videoStartNetworkTime), 0f, _videoPlayerManager.GetDuration());
+                
+                _videoPlayerManager.SetTime(offsetTime);
+                LogMessage($"Syncing video to {offsetTime:N2}");
+            }
         }
 
-        public override void OnInspectorGUI()
+        void StartVideoLoad(VRCUrl url)
         {
-            if (UdonSharpGUI.DrawConvertToUdonBehaviourButton(target) ||
-                UdonSharpGUI.DrawProgramSource(target))
-                return;
+#if UNITY_EDITOR
+            LogMessage($"Started video load for URL: {url}");
+#else
+            LogMessage($"Started video load for URL: {url}, requested by {Networking.GetOwner(gameObject).displayName}");
+#endif
 
-            EditorGUILayout.PropertyField(allowSeekProperty);
-            EditorGUILayout.PropertyField(defaultUnlockedProperty);
-            EditorGUILayout.PropertyField(syncFrequencyProperty);
-            EditorGUILayout.PropertyField(syncThresholdProperty);
+            SetStatusText("Loading video...");
+            ResetVideoLoad();
+            _loadingVideo = true;
+            _videoPlayerManager.LoadURL(url);
 
-            EditorGUILayout.Space();
-            playlistList.DoLayoutList();
+            AddUIUrlHistory(url);
+        }
+        
+        void SetPausedInternal(bool paused, bool updatePauseTime)
+        {
+            if (Networking.IsOwner(gameObject))
+                _ownerPaused = paused;
 
-            EditorGUILayout.Space();
-            _showUIReferencesDropdown = EditorGUILayout.Foldout(_showUIReferencesDropdown, "Object References");
-
-            if (_showUIReferencesDropdown)
+            if (_locallyPaused != paused)
             {
-                EditorGUI.indentLevel++;
+                _locallyPaused = paused;
 
-                EditorGUILayout.PropertyField(unityVideoPlayerProperty);
-                EditorGUILayout.PropertyField(avProVideoPlayerProperty);
+                if (IsInVideoMode())
+                {
+                    if (_ownerPaused)
+                        _videoPlayerManager.Pause();
+                    else
+                    {
+                        _videoPlayerManager.Play();
+                        if (updatePauseTime)
+                            _videoTargetStartTime = _lastCurrentTime;
+                    }
+                }
+                else
+                {
+                    if (_ownerPaused)
+                        _videoPlayerManager.Stop();
+                    else
+                        StartVideoLoad(_syncedURL);
+                }
 
-                EditorGUILayout.PropertyField(screenRendererProperty);
-                EditorGUILayout.PropertyField(streamRTSourceProperty);
+                SetUIPaused(paused);
 
-                EditorGUILayout.PropertyField(inputFieldProperty);
-                EditorGUILayout.PropertyField(urlTextProperty);
-                EditorGUILayout.PropertyField(urlPlaceholderTextProperty);
-                EditorGUILayout.PropertyField(masterLockedIconProperty);
-                EditorGUILayout.PropertyField(masterUnlockedIconProperty);
-                EditorGUILayout.PropertyField(lockGraphicProperty);
-                EditorGUILayout.PropertyField(pauseStopIconProperty);
-                EditorGUILayout.PropertyField(pauseIconProperty);
-                EditorGUILayout.PropertyField(stopIconProperty);
-                EditorGUILayout.PropertyField(playIconProperty);
-                EditorGUILayout.PropertyField(statusTextProperty);
-                EditorGUILayout.PropertyField(statusTextDropShadowProperty);
-                EditorGUILayout.PropertyField(videoProgressSlider);
-
-                EditorGUILayout.PropertyField(masterTextFieldProperty);
-                EditorGUILayout.PropertyField(videoOwnerTextFieldProperty);
-                EditorGUILayout.PropertyField(currentVideoFieldProperty);
-                EditorGUILayout.PropertyField(lastVideoFieldProperty);
-                EditorGUILayout.PropertyField(masterCheckObjProperty);
-
-                EditorGUI.indentLevel--;
+                if (_locallyPaused)
+                    SendCallback("OnUSharpVideoPause");
+                else
+                    SendCallback("OnUSharpVideoUnpause");
             }
 
-            serializedObject.ApplyModifiedProperties();
+            QueueRateLimitedSerialize();
         }
-    }
+
+        [PublicAPI]
+        public void SetPaused(bool paused)
+        {
+            if (Networking.IsOwner(gameObject))
+                SetPausedInternal(paused, true);
+        }
+
+        [PublicAPI]
+        public void TogglePaused()
+        {
+            SetPaused(!_ownerPaused);
+        }
+
+        void SetLoopingInternal(bool loop)
+        {
+            if (loop == _localLoopVideo)
+                return;
+
+            _loopVideo = _localLoopVideo = loop;
+
+            _videoPlayerManager.SetLooping(loop);
+
+            SetUILooping(loop);
+
+            QueueRateLimitedSerialize();
+        }
+
+        [PublicAPI]
+        public void SetLooping(bool loop)
+        {
+            if (Networking.IsOwner(gameObject))
+                SetLoopingInternal(loop);
+        }
+
+        [PublicAPI]
+        public void ToggleLooping()
+        {
+            SetLooping(!_loopVideo);
+        }
+
+        [PublicAPI]
+        public bool IsLooping()
+        {
+            return _localLoopVideo;
+        }
+
+        [PublicAPI]
+        public float GetVolume() => _videoPlayerManager.GetVolume();
+
+        [PublicAPI]
+        public void SetVolume(float volume)
+        {
+            volume = Mathf.Clamp01(volume);
+            if (volume == _videoPlayerManager.GetVolume())
+                return;
+
+            _videoPlayerManager.SetVolume(volume);
+            SetUIVolume(volume);
+        }
+
+        [PublicAPI]
+        public bool IsMuted() => _videoPlayerManager.IsMuted();
+
+        [PublicAPI]
+        public void SetMuted(bool muted)
+        {
+            _videoPlayerManager.SetMuted(muted);
+            SetUIMuted(muted);
+        }
+
+        bool _delayedSyncAllowed = true;
+        int _finalSyncCounter = 0;
+
+        /// <summary>
+        /// Takes a float in the range 0 to 1 and seeks the video to that % through the time
+        /// Is intended to be used with progress bar-type-things
+        /// </summary>
+        /// <param name="progress"></param>
+        [PublicAPI]
+        public void SeekTo(float progress)
+        {
+            if (!allowSeeking || !Networking.IsOwner(gameObject))
+                return;
+
+            float newTargetTime = _videoPlayerManager.GetDuration() * progress;
+            _lastVideoTime = newTargetTime;
+            _lastCurrentTime = newTargetTime;
+
+            _videoStartNetworkTime = GetNetworkTime() - newTargetTime;
+            _localVideoStartTime = _videoStartNetworkTime;
+
+            if (!_locallyPaused && !GetVideoManager().IsPlaying())
+                GetVideoManager().Play();
+
+            SyncVideo();
+            QueueRateLimitedSerialize();
+        }
+
+        /// <summary>
+        /// Used on things that are easily spammable to prevent flooding the network unintentionally.
+        /// Will allow 1 sync every half second and then will send a final sync to propagate the final changed values of things at the end
+        /// </summary>
+        void QueueRateLimitedSerialize()
+        {
+            //QueueSerialize(); // Debugging line :D this serialization method can potentially hide some issues so we want to disable it sometimes and verify stuff works right
+
+            if (_delayedSyncAllowed)
+            {
+                QueueSerialize();
+                _delayedSyncAllowed = false;
+                SendCustomEventDelayedSeconds(nameof(_UnlockDelayedSync), 0.5f);
+            }
+
+            ++_finalSyncCounter;
+            SendCustomEventDelayedSeconds(nameof(_SendFinalSync), 0.8f);
+        }
+
+        public void _UnlockDelayedSync()
+        {
+            _delayedSyncAllowed = true;
+        }
+
+        // Handles running a final sync after doing a QueueRateLimitedSerialize, so that the final changes of the seek time get propagated
+        public void _SendFinalSync()
+        {
+            if (--_finalSyncCounter == 0)
+                QueueSerialize();
+        }
+        
+        /// <summary>
+        /// Determines if the player can control this video player. This means the player is either the master, the instance creator, or the video player is unlocked.
+        /// </summary>
+        /// <returns></returns>
+        [PublicAPI]
+        public bool CanControlVideoPlayer()
+        {
+#if UNITY_EDITOR
+            return Networking.IsMaster || !_isMasterOnly;
+#else
+            return Networking.IsMaster || !_isMasterOnly || (allowInstanceCreatorControl && Networking.LocalPlayer.isInstanceOwner);
 #endif
+        }
+
+        /// <summary>
+        /// Takes ownership of the video player if allowed
+        /// </summary>
+        [PublicAPI]
+        public void TakeOwnership()
+        {
+            if (Networking.IsOwner(gameObject))
+                return;
+
+            if (CanControlVideoPlayer())
+                Networking.SetOwner(Networking.LocalPlayer, gameObject);
+        }
+
+        [PublicAPI]
+        public void QueueSerialize()
+        {
+            if (!Networking.IsOwner(gameObject))
+                return;
+
+            RequestSerialization();
+        }
+
+        bool _shuffled;
+
+        [PublicAPI]
+        public void PlayNextVideoFromPlaylist()
+        {
+            if (_nextPlaylistIndex == -1 || playlist.Length == 0 || !Networking.IsOwner(gameObject))
+                return;
+
+            if (loopPlaylist && _playlistErrorCount > PLAYLIST_ERROR_RETRY_COUNT)
+            {
+                Debug.LogError("Maximum number of retries for playlist video looping hit. Stopping playlist playback.");
+                _nextPlaylistIndex = -1;
+                return;
+            }
+
+            if (shufflePlaylist && !_shuffled)
+            {
+                Random.InitState(_shuffleSeed);
+
+                int n = playlist.Length - 1;
+                for (int i = 0; i < n; ++i)
+                {
+                    int r = Random.Range(i + 1, n);
+                    VRCUrl flipVal = playlist[r];
+                    playlist[r] = playlist[i];
+                    playlist[i] = flipVal;
+                }
+
+                _shuffled = true;
+            }
+
+            int currentIdx = _nextPlaylistIndex++;
+
+            if (currentIdx >= playlist.Length)
+            {
+                if (loopPlaylist)
+                {
+                    _nextPlaylistIndex = 1;
+                    currentIdx = 0;
+                }
+                else
+                {
+                    // We reached the end of the playlist
+                    _nextPlaylistIndex = -1;
+                    return;
+                }
+            }
+
+            PlayVideoInternal(playlist[currentIdx], false);
+        }
+
+        [PublicAPI]
+        public void SetLocked(bool locked)
+        {
+            if (!Networking.IsMaster)
+                return;
+
+            TakeOwnership();
+
+            _isMasterOnly = !_isMasterOnly;
+            _lastMasterLocked = _isMasterOnly;
+
+            SetUILocked(locked);
+
+            QueueSerialize();
+
+            SendCallback("OnUSharpVideoMasterLockChange");
+        }
+
+        [PublicAPI]
+        public bool IsLocked()
+        {
+            return _isMasterOnly;
+        }
+
+        /// <summary>
+        /// Sets the video player to use the Unity video player as a backend
+        /// </summary>
+        [PublicAPI]
+        public void SetToUnityPlayer()
+        {
+            if (CanControlVideoPlayer())
+            {
+                TakeOwnership();
+                SetPlayerMode(PLAYER_MODE_UNITY);
+            }
+        }
+
+        /// <summary>
+        /// Sets the video player to use AVPro as the backend.
+        /// AVPro supports streams so this is aliased in UI as the "Stream" player to avoid confusion
+        /// </summary>
+        [PublicAPI]
+        public void SetToAVProPlayer()
+        {
+            if (CanControlVideoPlayer())
+            {
+                TakeOwnership();
+                SetPlayerMode(PLAYER_MODE_AVPRO);
+            }
+        }
+
+        void SetPlayerMode(int newPlayerMode)
+        {
+            if (_localPlayerMode == newPlayerMode)
+                return;
+
+            StopVideo();
+
+            if (Networking.IsOwner(gameObject))
+                _syncedURL = VRCUrl.Empty;
+
+            currentPlayerMode = newPlayerMode;
+
+            _locallyPaused = _ownerPaused = false;
+
+            _nextPlaylistIndex = -1;
+            
+            _localPlayerMode = newPlayerMode;
+
+            ResetVideoLoad();
+
+            if (IsUsingUnityPlayer())
+            {
+                _videoPlayerManager.SetToVideoPlayerMode();
+                SetUIToVideoMode();
+            }
+            else
+            {
+                _videoPlayerManager.SetToStreamPlayerMode();
+                SetUIToStreamMode();
+            }
+
+            QueueSerialize();
+
+            UpdateRenderTexture();
+
+            SendCallback("OnUSharpVideoModeChange");
+        }
+
+        [PublicAPI]
+        public bool IsInVideoMode()
+        {
+            return _videoSync;
+        }
+
+        [PublicAPI]
+        public bool IsInStreamMode()
+        {
+            return !_videoSync;
+        }
+
+        [PublicAPI]
+        public bool IsUsingUnityPlayer()
+        {
+            return _localPlayerMode == PLAYER_MODE_UNITY;
+        }
+
+        [PublicAPI]
+        public bool IsUsingAVProPlayer()
+        {
+            return _localPlayerMode == PLAYER_MODE_AVPRO;
+        }
+
+        /// <summary>
+        /// Reloads the video on the video player, usually used if the video playback has encountered some internal issue or if the audio has gotten desynced from the video
+        /// </summary>
+        [PublicAPI]
+        public void Reload()
+        {
+            if ((_ownerPlaying || Networking.IsOwner(gameObject)) && !_loadingVideo)
+            {
+                StartVideoLoad(_syncedURL);
+
+                if (Networking.IsOwner(gameObject))
+                    _videoTargetStartTime = GetVideoManager().GetTime();
+
+                SendCallback("OnUSharpVideoReload");
+            }
+        }
+
+        public VideoPlayerManager GetVideoManager()
+        {
+            if (_videoPlayerManager)
+                return _videoPlayerManager;
+
+            _videoPlayerManager = GetComponentInChildren<VideoPlayerManager>();
+
+            return _videoPlayerManager;
+        }
+
+        #region Utilities
+        /// <summary>
+        /// Parses the start time of a YouTube video from the URL.
+        /// If no time is found or given URL is not a YouTube URL, returns 0.0
+        /// </summary>
+        /// <param name="url"></param>
+        /// <returns></returns>
+        float GetVideoStartTime(string url)
+        {
+            // Attempt to parse out a start time from YouTube links with t= or start=
+            if (url.Contains("youtube.com/watch") ||
+                url.Contains("youtu.be/"))
+            {
+                int tIndex = url.IndexOf("?t=", System.StringComparison.Ordinal);
+                if (tIndex == -1) tIndex = url.IndexOf("&t=", System.StringComparison.Ordinal);
+                if (tIndex == -1) tIndex = url.IndexOf("?start=", System.StringComparison.Ordinal);
+                if (tIndex == -1) tIndex = url.IndexOf("&start=", System.StringComparison.Ordinal);
+
+                if (tIndex == -1)
+                    return 0f;
+
+                char[] urlArr = url.ToCharArray();
+                int numIdx = url.IndexOf('=', tIndex) + 1;
+
+                string intStr = "";
+
+                while (numIdx < urlArr.Length)
+                {
+                    char currentChar = urlArr[numIdx];
+                    if (!char.IsNumber(currentChar))
+                        break;
+
+                    intStr += currentChar;
+
+                    ++numIdx;
+                }
+
+                if (string.IsNullOrWhiteSpace(intStr))
+                    return 0f;
+
+                int secondsCount = 0;
+                if (int.TryParse(intStr, out secondsCount))
+                    return secondsCount;
+            }
+
+            return 0f;
+        }
+
+        /// <summary>
+        /// Checks for URL sanity and throws warnings if it's not nice.
+        /// </summary>
+        /// <param name="url"></param>
+        bool ValidateURL(string url)
+        {
+            if (url.Contains("youtube.com/watch") ||
+                url.Contains("youtu.be/"))
+            {
+                if (url.IndexOf("&list=", System.StringComparison.OrdinalIgnoreCase) != -1)
+                    LogWarning($"URL '{url}' input with playlist link, this can slow down YouTubeDL link resolves significantly see: https://vrchat.canny.io/feature-requests/p/add-no-playlist-to-ytdl-arguments-for-url-resolution");
+            }
+            
+            if (string.IsNullOrWhiteSpace(url)) // Don't do anything if the player entered an empty URL by accident
+                return false;
+
+            //if (!url.StartsWith("https://", System.StringComparison.OrdinalIgnoreCase) &&
+            //    !url.StartsWith("http://", System.StringComparison.OrdinalIgnoreCase) &&
+            //    !IsRTSPURL(url))
+            int idx = url.IndexOf("://", System.StringComparison.Ordinal);
+            if (idx < 1 || idx > 8) // I'm not sure exactly what rule VRC uses so just check for the :// in an expected spot since it seems like VRC checks that it has a protocol at least.
+            {
+                LogError($"Invalid URL '{url}' provided");
+                SetStatusText("Invalid URL");
+                SendCustomEventDelayedSeconds(nameof(_LateClearStatusInternal), 2f);
+                return false;
+            }
+
+            // Longer than most browsers support, see: https://stackoverflow.com/questions/417142/what-is-the-maximum-length-of-a-url-in-different-browsers. I'm not sure if this length will even play in the video player.
+            // Most CDN's keep their URLs under 1000 characters so this should be more than reasonable
+            // Prevents people from pasting a book and breaking sync on the video player xd
+            if (url.Length > 4096)
+            {
+                LogError($"Video URL is too long! url: '{url}'");
+                SetStatusText("Invalid URL");
+                SendCustomEventDelayedSeconds(nameof(_LateClearStatusInternal), 2f);
+                return false;
+            }
+
+            return true;
+        }
+
+        public void _LateClearStatusInternal()
+        {
+            if (_videoPlayerManager.IsPlaying() && !_loadingVideo)
+            {
+                SetStatusText("");
+            }
+        }
+
+        /// <summary>
+        /// Gets network time with some degree of ms resolution unlike GetServerTimeInSeconds which is 1 second resolution
+        /// </summary>
+        /// <returns></returns>
+        double GetNetworkTime()
+        {
+            //return Networking.GetServerTimeInSeconds();
+            return (Networking.GetNetworkDateTime() - _localNetworkTimeStart).TotalSeconds + localSyncOffset;
+        }
+
+        void LogMessage(string message)
+        {
+            Debug.Log("[<color=#9C6994>USharpVideo</color>] " + message, this);
+        }
+
+        void LogWarning(string message)
+        {
+            Debug.LogWarning("[<color=#FF00FF>USharpVideo</color>] " + message, this);
+        }
+
+        void LogError(string message)
+        {
+            Debug.LogError("[<color=#FF00FF>USharpVideo</color>] " + message, this);
+        }
+        #endregion
+
+        #region UI Control handling
+        public void RegisterControlHandler(VideoControlHandler newControlHandler)
+        {
+            if (_registeredControlHandlers == null)
+                _registeredControlHandlers = new VideoControlHandler[0];
+
+            foreach (VideoControlHandler controlHandler in _registeredControlHandlers)
+            {
+                if (newControlHandler == controlHandler)
+                    return;
+            }
+
+            VideoControlHandler[] newControlHandlers = new VideoControlHandler[_registeredControlHandlers.Length + 1];
+            _registeredControlHandlers.CopyTo(newControlHandlers, 0);
+            _registeredControlHandlers = newControlHandlers;
+
+            _registeredControlHandlers[_registeredControlHandlers.Length - 1] = newControlHandler;
+
+            newControlHandler.SetLocked(_isMasterOnly);
+            newControlHandler.SetLooping(_localLoopVideo);
+            newControlHandler.SetPaused(_locallyPaused);
+            newControlHandler.SetVolume(_videoPlayerManager.GetVolume());
+            newControlHandler.SetMuted(_videoPlayerManager.IsMuted());
+        }
+        
+        public void UnregisterControlHandler(VideoControlHandler controlHandler)
+        {
+            if (_registeredControlHandlers == null)
+                _registeredControlHandlers = new VideoControlHandler[0];
+
+            int controlHandlerCount = _registeredControlHandlers.Length;
+            for (int i = 0; i < controlHandlerCount; ++i)
+            {
+                VideoControlHandler handler = _registeredControlHandlers[i];
+
+                if (controlHandler == handler)
+                {
+                    VideoControlHandler[] newControlHandlers = new VideoControlHandler[controlHandlerCount - 1];
+
+                    for (int j = 0; j < i; ++ j)
+                        newControlHandlers[j] = _registeredControlHandlers[j];
+
+                    for (int j = i + 1; j < controlHandlerCount; ++j)
+                        newControlHandlers[j - 1] = _registeredControlHandlers[j];
+
+                    _registeredControlHandlers = newControlHandlers;
+
+                    return;
+                }
+            }
+        }
+
+        string _lastStatusText = "";
+
+        void SetStatusText(string statusText)
+        {
+            if (statusText == _lastStatusText)
+                return;
+
+            _lastStatusText = statusText;
+
+            foreach (VideoControlHandler handler in _registeredControlHandlers)
+                handler.SetStatusText(statusText);
+        }
+
+        void SetUIPaused(bool paused)
+        {
+            foreach (VideoControlHandler handler in _registeredControlHandlers)
+                handler.SetPaused(paused);
+        }
+
+        void SetUILocked(bool locked)
+        {
+            foreach (VideoControlHandler handler in _registeredControlHandlers)
+                handler.SetLocked(locked);
+        }
+
+        void AddUIUrlHistory(VRCUrl url)
+        {
+            foreach (VideoControlHandler handler in _registeredControlHandlers)
+                handler.AddURLToHistory(url);
+        }
+
+        void SetUIToVideoMode()
+        {
+            foreach (VideoControlHandler handler in _registeredControlHandlers)
+                handler.SetToVideoPlayerMode();
+        }
+
+        void SetUIToStreamMode()
+        {
+            foreach (VideoControlHandler handler in _registeredControlHandlers)
+                handler.SetToStreamPlayerMode();
+        }
+
+        void SendUIOwnerUpdate()
+        {
+            foreach (VideoControlHandler handler in _registeredControlHandlers)
+                handler.OnVideoPlayerOwnerTransferred();
+        }
+
+        void SetUILooping(bool looping)
+        {
+            foreach (VideoControlHandler handler in _registeredControlHandlers)
+                handler.SetLooping(looping);
+        }
+
+        void SetUIVolume(float volume)
+        {
+            foreach (VideoControlHandler handler in _registeredControlHandlers)
+                handler.SetVolume(volume);
+        }
+
+        void SetUIMuted(bool muted)
+        {
+            foreach (VideoControlHandler handler in _registeredControlHandlers)
+                handler.SetMuted(muted);
+        }
+        #endregion
+
+        #region Video Screen Handling
+        public void RegisterScreenHandler(VideoScreenHandler newScreenHandler)
+        {
+            if (_registeredScreenHandlers == null)
+                _registeredScreenHandlers = new VideoScreenHandler[0];
+
+            foreach (VideoScreenHandler controlHandler in _registeredScreenHandlers)
+            {
+                if (newScreenHandler == controlHandler)
+                    return;
+            }
+
+            VideoScreenHandler[] newControlHandlers = new VideoScreenHandler[_registeredScreenHandlers.Length + 1];
+            _registeredScreenHandlers.CopyTo(newControlHandlers, 0);
+            _registeredScreenHandlers = newControlHandlers;
+
+            _registeredScreenHandlers[_registeredScreenHandlers.Length - 1] = newScreenHandler;
+        }
+
+        public void UnregisterScreenHandler(VideoScreenHandler screenHandler)
+        {
+            if (_registeredScreenHandlers == null)
+                _registeredScreenHandlers = new VideoScreenHandler[0];
+
+            int controlHandlerCount = _registeredScreenHandlers.Length;
+            for (int i = 0; i < controlHandlerCount; ++i)
+            {
+                VideoScreenHandler handler = _registeredScreenHandlers[i];
+
+                if (screenHandler == handler)
+                {
+                    VideoScreenHandler[] newControlHandlers = new VideoScreenHandler[controlHandlerCount - 1];
+
+                    for (int j = 0; j < i; ++j)
+                        newControlHandlers[j] = _registeredScreenHandlers[j];
+
+                    for (int j = i + 1; j < controlHandlerCount; ++j)
+                        newControlHandlers[j - 1] = _registeredScreenHandlers[j];
+
+                    _registeredScreenHandlers = newControlHandlers;
+
+                    return;
+                }
+            }
+        }
+
+        Texture _lastAssignedRenderTexture;
+
+        void UpdateRenderTexture()
+        {
+            if (_registeredScreenHandlers == null)
+                return;
+
+            Texture renderTexture = _videoPlayerManager.GetVideoTexture();
+
+            if (_lastAssignedRenderTexture == renderTexture)
+                return;
+
+            foreach (VideoScreenHandler handler in _registeredScreenHandlers)
+            {
+                if (Utilities.IsValid(handler))
+                    handler.UpdateVideoTexture(renderTexture, IsUsingAVProPlayer());
+            }
+
+            _lastAssignedRenderTexture = renderTexture;
+
+            SendCallback("OnUSharpVideoRenderTextureChange");
+        }
+        #endregion
+
+        #region Callback Receivers
+        [PublicAPI]
+        public void RegisterCallbackReceiver(UdonSharpBehaviour callbackReceiver)
+        {
+            if (!Utilities.IsValid(callbackReceiver))
+                return;
+
+            if (_registeredCallbackReceivers == null)
+                _registeredCallbackReceivers = new UdonSharpBehaviour[0];
+
+            foreach (UdonSharpBehaviour currReceiver in _registeredCallbackReceivers)
+            {
+                if (callbackReceiver == currReceiver)
+                    return;
+            }
+
+            UdonSharpBehaviour[] newControlHandlers = new UdonSharpBehaviour[_registeredCallbackReceivers.Length + 1];
+            _registeredCallbackReceivers.CopyTo(newControlHandlers, 0);
+            _registeredCallbackReceivers = newControlHandlers;
+
+            _registeredCallbackReceivers[_registeredCallbackReceivers.Length - 1] = callbackReceiver;
+        }
+
+        [PublicAPI]
+        public void UnregisterCallbackReceiver(UdonSharpBehaviour callbackReceiver)
+        {
+            if (!Utilities.IsValid(callbackReceiver))
+                return;
+
+            if (_registeredCallbackReceivers == null)
+                _registeredCallbackReceivers = new UdonSharpBehaviour[0];
+
+            int callbackReceiverCount = _registeredControlHandlers.Length;
+            for (int i = 0; i < callbackReceiverCount; ++i)
+            {
+                UdonSharpBehaviour currHandler = _registeredCallbackReceivers[i];
+
+                if (callbackReceiver == currHandler)
+                {
+                    UdonSharpBehaviour[] newCallbackReceivers = new UdonSharpBehaviour[callbackReceiverCount - 1];
+
+                    for (int j = 0; j < i; ++j)
+                        newCallbackReceivers[j] = _registeredCallbackReceivers[j];
+
+                    for (int j = i + 1; j < callbackReceiverCount; ++j)
+                        newCallbackReceivers[j - 1] = _registeredCallbackReceivers[j];
+
+                    _registeredCallbackReceivers = newCallbackReceivers;
+
+                    return;
+                }
+            }
+        }
+
+        void SendCallback(string callbackName)
+        {
+            foreach (UdonSharpBehaviour callbackReceiver in _registeredCallbackReceivers)
+            {
+                if (Utilities.IsValid(callbackReceiver))
+                {
+                    callbackReceiver.SendCustomEvent(callbackName);
+                }
+            }
+        }
+        #endregion
+    }
 }

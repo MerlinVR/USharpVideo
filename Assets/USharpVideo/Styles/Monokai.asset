@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 447ea4bbd35f6a541adc230420ec00c2, type: 3}
+  m_Name: Monokai
+  m_EditorClassIdentifier: 
+  backgroundColor: {r: 0.20828125, g: 0.215, b: 0.18140624, a: 1}
+  fieldBackgroundColor: {r: 0.17164284, g: 0.17799999, b: 0.14621428, a: 1}
+  buttonBackgroundColor: {r: 0.147, g: 0.153, b: 0.132, a: 1}
+  scrollBarHandleColor: {r: 1, g: 0.14150941, b: 0.50943416, a: 1}
+  scrollBarProgressColor: {r: 1, g: 0.3018868, b: 0.59755844, a: 1}
+  iconColor: {r: 0.4, g: 0.8509804, b: 0.9372549, a: 1}
+  iconDropShadowColor: {r: 0.16197933, g: 0.18439165, b: 0.18867922, a: 1}
+  highlightedButtonColor: {r: 0.84705883, g: 0.14901961, b: 0.44705883, a: 1}
+  placeholderTextColor: {r: 0.68235296, g: 0.5058824, b: 1, a: 0.46666667}
+  textColor: {r: 0.68235296, g: 0.5058824, b: 1, a: 1}
+  textDropShadowColor: {r: 0.119259536, g: 0.11213957, b: 0.13207549, a: 1}
+  invertedTextColor: {r: 0.23977819, g: 0.8301887, b: 0.12531151, a: 1}
+  redIconColor: {r: 0.6320754, g: 0.19677822, b: 0.19677822, a: 1}
+  invertedIconColor: {r: 0.23977819, g: 0.8301887, b: 0.12531151, a: 1}
+  textHighlightColor: {r: 0.8301887, g: 0.735849, b: 1, a: 0.68235296}
+  textCaretColor: {r: 1, g: 1, b: 1, a: 1}
