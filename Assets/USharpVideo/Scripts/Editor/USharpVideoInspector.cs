@@ -32,15 +32,15 @@ namespace UdonSharp.Video.Internal
         private void OnEnable()
         {
             allowSeekProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.allowSeeking));
-            defaultUnlockedProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.defaultUnlocked));
+            defaultUnlockedProperty = serializedObject.FindProperty("defaultUnlocked");
             allowCreatorControlProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.allowInstanceCreatorControl));
             syncFrequencyProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.syncFrequency));
             syncThresholdProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.syncThreshold));
 
-            defaultVolumeProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.defaultVolume));
-            audioRangeProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.audioRange));
+            defaultVolumeProperty = serializedObject.FindProperty("defaultVolume");
+            audioRangeProperty = serializedObject.FindProperty("audioRange");
 
-            defaultStreamMode = serializedObject.FindProperty(nameof(USharpVideoPlayer.defaultStreamMode));
+            defaultStreamMode = serializedObject.FindProperty("defaultStreamMode");
 
             playlistProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.playlist));
             loopPlaylistProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.loopPlaylist));

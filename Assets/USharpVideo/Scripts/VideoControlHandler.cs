@@ -364,7 +364,7 @@ namespace UdonSharp.Video
         /// </summary>
         public void OnPlayButtonPress()
         {
-            targetVideoPlayer.TogglePaused();
+            targetVideoPlayer.SetPaused(!targetVideoPlayer.IsPaused());
         }
 
         public void OnLockButtonPress()
@@ -380,7 +380,7 @@ namespace UdonSharp.Video
         public void OnLoopButtonPressed()
         {
             targetVideoPlayer.TakeOwnership();
-            targetVideoPlayer.ToggleLooping();
+            targetVideoPlayer.SetLooping(!targetVideoPlayer.IsLooping());
         }
 
         public void OnVideoPlayerModeButtonPressed()

@@ -21,6 +21,7 @@ namespace UdonSharp.Video.Internal
         static string youtubeDLPath = "";
         static HashSet<System.Diagnostics.Process> runningYTDLProcesses = new HashSet<System.Diagnostics.Process>();
         static HashSet<MonoBehaviour> registeredBehaviours = new HashSet<MonoBehaviour>();
+        static DateTime lastRequestTime = DateTime.MinValue;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void SetupURLResolveCallback()
@@ -69,6 +70,16 @@ namespace UdonSharp.Video.Internal
 
         static void ResolveURLCallback(VRCUrl url, int resolution, UnityEngine.Object videoPlayer, Action<string> urlResolvedCallback, Action<VideoError> errorCallback)
         {
+            // Broken for some unknown reason, when multiple rate limits fire off, only fires the first callback.
+            //if ((System.DateTime.UtcNow - lastRequestTime).TotalSeconds < 5.0)
+            //{
+            //    Debug.LogWarning("Rate limited " + videoPlayer, videoPlayer);
+            //    errorCallback(VideoError.RateLimited);
+            //    return;
+            //}
+
+            lastRequestTime = System.DateTime.UtcNow;
+
             System.Diagnostics.Process ytdlProcess = new System.Diagnostics.Process();
 
             ytdlProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;

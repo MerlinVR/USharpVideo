@@ -19,7 +19,8 @@ namespace UdonSharp.Video
         public bool allowSeeking = true;
         
         [Tooltip("If enabled defaults to unlocked so anyone can put in a URL")]
-        public bool defaultUnlocked = true;
+        [SerializeField]
+        bool defaultUnlocked = true;
 
         [Tooltip("If enabled allows the instance creator to always control the video player regardless of if they are master or not")]
         [PublicAPI]
@@ -34,10 +35,12 @@ namespace UdonSharp.Video
         
         [Range(0f, 1f)]
         [Tooltip("The default volume for the volume slider on the video player")]
-        public float defaultVolume = 0.5f;
+        [SerializeField]
+        float defaultVolume = 0.5f;
 
         [Tooltip("The max range of the audio sources")]
-        public float audioRange = 40f;
+        [SerializeField]
+        float audioRange = 40f;
 
         /// <summary>
         /// Local offset from the network time to sync the video
@@ -50,7 +53,8 @@ namespace UdonSharp.Video
         public VRCUrl[] playlist = new VRCUrl[0];
 
         [Tooltip("Should default to the stream player? This is usually used when you want to put a live stream in the default playlist.")]
-        public bool defaultStreamMode = false;
+        [SerializeField]
+        bool defaultStreamMode = false;
 
         [Tooltip("If the default playlist should loop")]
         [PublicAPI]
@@ -112,10 +116,10 @@ namespace UdonSharp.Video
 
         // Video loading state
         const int MAX_RETRY_COUNT = 4;
-        const float DEFAULT_RETRY_TIMEOUT = 40.0f;
+        const float DEFAULT_RETRY_TIMEOUT = 35.0f;
         const float RATE_LIMIT_RETRY_TIMEOUT = 5.5f;
         const float VIDEO_ERROR_RETRY_TIMEOUT = 5f;
-        const float PLAYLIST_ERROR_RETRY_COUNT = 6;
+        const float PLAYLIST_ERROR_RETRY_COUNT = 4;
 
         bool _loadingVideo = false;
         float _currentLoadingTime = 0f; // Counts down to 0 while loading
@@ -135,8 +139,15 @@ namespace UdonSharp.Video
 
         bool _videoSync = true;
 
+        bool _ranInit = false;
+
         void Start()
         {
+            if (_ranInit)
+                return;
+
+            _ranInit = true;
+
             _videoPlayerManager = GetVideoManager();
             _videoPlayerManager.Start();
 
@@ -153,7 +164,7 @@ namespace UdonSharp.Video
                 if (defaultStreamMode)
                 {
                     SetPlayerMode(PLAYER_MODE_AVPRO);
-                    _nextPlaylistIndex = 0;
+                    _nextPlaylistIndex = 0; // SetPlayerMode sets this to -1, but we want to be able to keep it intact so reset to 0
                 }
 
                 _shuffleSeed = Random.Range(0, 10000);
@@ -426,7 +437,7 @@ namespace UdonSharp.Video
             if (_isMasterOnly != _lastMasterLocked)
             {
                 SetUILocked(_isMasterOnly);
-                SendCallback("OnUSharpVideoMasterLockChange");
+                SendCallback("OnUSharpVideoLockChange");
                 _lastMasterLocked = _isMasterOnly;
             }
 
@@ -685,6 +696,10 @@ namespace UdonSharp.Video
             QueueRateLimitedSerialize();
         }
 
+        /// <summary>
+        /// Pauses the video if we have control of the video player.
+        /// </summary>
+        /// <param name="paused"></param>
         [PublicAPI]
         public void SetPaused(bool paused)
         {
@@ -693,9 +708,9 @@ namespace UdonSharp.Video
         }
 
         [PublicAPI]
-        public void TogglePaused()
+        public bool IsPaused()
         {
-            SetPaused(!_ownerPaused);
+            return _ownerPaused;
         }
 
         void SetLoopingInternal(bool loop)
@@ -712,17 +727,15 @@ namespace UdonSharp.Video
             QueueRateLimitedSerialize();
         }
 
+        /// <summary>
+        /// Sets whether the currently playing video should loop and restart once it ends.
+        /// </summary>
+        /// <param name="loop"></param>
         [PublicAPI]
         public void SetLooping(bool loop)
         {
             if (Networking.IsOwner(gameObject))
                 SetLoopingInternal(loop);
-        }
-
-        [PublicAPI]
-        public void ToggleLooping()
-        {
-            SetLooping(!_loopVideo);
         }
 
         [PublicAPI]
@@ -734,6 +747,10 @@ namespace UdonSharp.Video
         [PublicAPI]
         public float GetVolume() => _videoPlayerManager.GetVolume();
 
+        /// <summary>
+        /// Sets the audio source volume for the audio sources used by this video player.
+        /// </summary>
+        /// <param name="volume"></param>
         [PublicAPI]
         public void SetVolume(float volume)
         {
@@ -748,6 +765,10 @@ namespace UdonSharp.Video
         [PublicAPI]
         public bool IsMuted() => _videoPlayerManager.IsMuted();
 
+        /// <summary>
+        /// Mutes audio from this video player
+        /// </summary>
+        /// <param name="muted"></param>
         [PublicAPI]
         public void SetMuted(bool muted)
         {
@@ -852,6 +873,9 @@ namespace UdonSharp.Video
 
         bool _shuffled;
 
+        /// <summary>
+        /// Plays the next video from the video player's built-in playlist
+        /// </summary>
         [PublicAPI]
         public void PlayNextVideoFromPlaylist()
         {
@@ -860,7 +884,7 @@ namespace UdonSharp.Video
 
             if (loopPlaylist && _playlistErrorCount > PLAYLIST_ERROR_RETRY_COUNT)
             {
-                Debug.LogError("Maximum number of retries for playlist video looping hit. Stopping playlist playback.");
+                LogError("Maximum number of retries for playlist video looping hit. Stopping playlist playback.");
                 _nextPlaylistIndex = -1;
                 return;
             }
@@ -902,6 +926,19 @@ namespace UdonSharp.Video
         }
 
         [PublicAPI]
+        public int GetPlaylistIndex() => _nextPlaylistIndex > 0 ? _nextPlaylistIndex - 1 : -1;
+
+        [PublicAPI]
+        public void SetNextPlaylistVideo(int nextPlaylistIdx)
+        {
+            _nextPlaylistIndex = nextPlaylistIdx;
+        }
+
+        /// <summary>
+        /// Sets whether this video player is locked to the master which means only the master has the ability to put new videos in.
+        /// </summary>
+        /// <param name="locked"></param>
+        [PublicAPI]
         public void SetLocked(bool locked)
         {
             if (!Networking.IsMaster)
@@ -916,7 +953,7 @@ namespace UdonSharp.Video
 
             QueueSerialize();
 
-            SendCallback("OnUSharpVideoMasterLockChange");
+            SendCallback("OnUSharpVideoLockChange");
         }
 
         [PublicAPI]
@@ -990,18 +1027,26 @@ namespace UdonSharp.Video
             SendCallback("OnUSharpVideoModeChange");
         }
 
+        /// <summary>
+        /// Are we playing a standard video where we know the length and need to sync its time across clients?
+        /// </summary>
+        /// <returns></returns>
         [PublicAPI]
         public bool IsInVideoMode()
         {
             return _videoSync;
         }
 
+        /// <summary>
+        /// Are we playing some type of live stream where we do not know the length of the stream and do not need to sync time across clients?
+        /// </summary>
+        /// <returns></returns>
         [PublicAPI]
         public bool IsInStreamMode()
         {
             return !_videoSync;
         }
-
+        
         [PublicAPI]
         public bool IsUsingUnityPlayer()
         {
@@ -1186,8 +1231,11 @@ namespace UdonSharp.Video
             newControlHandler.SetLocked(_isMasterOnly);
             newControlHandler.SetLooping(_localLoopVideo);
             newControlHandler.SetPaused(_locallyPaused);
-            newControlHandler.SetVolume(_videoPlayerManager.GetVolume());
-            newControlHandler.SetMuted(_videoPlayerManager.IsMuted());
+            newControlHandler.SetStatusText(_lastStatusText);
+
+            VideoPlayerManager manager = GetVideoManager();
+            newControlHandler.SetVolume(manager.GetVolume());
+            newControlHandler.SetMuted(manager.IsMuted());
         }
         
         public void UnregisterControlHandler(VideoControlHandler controlHandler)
@@ -1356,6 +1404,11 @@ namespace UdonSharp.Video
         #endregion
 
         #region Callback Receivers
+        /// <summary>
+        /// Registers an UdonSharpBehaviour as a callback receiver for events that happen on this video player.
+        /// Callback receivers can be used to react to state changes on the video player without needing to check periodically.
+        /// </summary>
+        /// <param name="callbackReceiver"></param>
         [PublicAPI]
         public void RegisterCallbackReceiver(UdonSharpBehaviour callbackReceiver)
         {
