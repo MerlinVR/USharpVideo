@@ -107,7 +107,7 @@ namespace UdonSharp.Video
             return false;
         }
 
-        private void LateUpdate()
+        private void Update()
         {
             RunUIUpdate();
         }

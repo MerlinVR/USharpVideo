@@ -40,9 +40,11 @@ namespace UdonSharp.Video
         [SerializeField]
         float defaultVolume = 0.5f;
 
-        [Tooltip("The max range of the audio sources")]
+#pragma warning disable CS0414
+        [Tooltip("The max range of the audio sources on this video player")]
         [SerializeField]
         float audioRange = 40f;
+#pragma warning restore CS0414
 
         /// <summary>
         /// Local offset from the network time to sync the video

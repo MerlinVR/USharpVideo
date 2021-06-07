@@ -93,6 +93,23 @@ namespace UdonSharp.Video.Internal
                         Undo.RecordObject(source, "Change audio properties");
                         source.maxDistance = Mathf.Max(0f, audioRangeProperty.floatValue);
                         source.volume = defaultVolumeProperty.floatValue;
+
+                        if (PrefabUtility.IsPartOfPrefabInstance(source))
+                            PrefabUtility.RecordPrefabInstancePropertyModifications(source);
+                    }
+                }
+
+                VolumeController[] volumeControllers = ((Component)target).GetUdonSharpComponentsInChildren<VolumeController>(true);
+
+                foreach (VolumeController controller in volumeControllers)
+                {
+                    if (controller.slider)
+                    {
+                        Undo.RecordObject(controller.slider, "Change audio properties");
+                        controller.slider.value = defaultVolumeProperty.floatValue;
+
+                        if (PrefabUtility.IsPartOfPrefabInstance(controller.slider))
+                            PrefabUtility.RecordPrefabInstancePropertyModifications(controller.slider);
                     }
                 }
             }
