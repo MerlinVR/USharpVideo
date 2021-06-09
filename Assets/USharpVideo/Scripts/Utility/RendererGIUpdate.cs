@@ -7,6 +7,7 @@ using VRC.Udon;
 namespace UdonSharp.Video
 {
     [UdonBehaviourSyncMode(BehaviourSyncMode.NoVariableSync)]
+    [AddComponentMenu("Udon Sharp/Video/Utilities/Renderer GI Update")]
     public class RendererGIUpdate : UdonSharpBehaviour
     {
         Renderer targetRenderer;

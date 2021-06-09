@@ -6,6 +6,7 @@ using UnityEngine;
 namespace UdonSharp.Video
 {
     [UdonBehaviourSyncMode(BehaviourSyncMode.NoVariableSync)]
+    [AddComponentMenu("Udon Sharp/Video/Utilities/Video Screen Handler")]
     public class VideoScreenHandler : UdonSharpBehaviour
     {
         [SerializeField, NotNull, Tooltip("The video player that this pulls from")]

@@ -11,6 +11,7 @@ namespace UdonSharp.Video
 {
     [DefaultExecutionOrder(10)]
     [UdonBehaviourSyncMode(BehaviourSyncMode.NoVariableSync)]
+    [AddComponentMenu("Udon Sharp/Video/UI/Video Control Handler")]
     public class VideoControlHandler : UdonSharpBehaviour
     {
         /// <summary>

@@ -10,6 +10,7 @@ namespace UdonSharp.Video.Examples
     /// This can be used for something like karaoke where one person is singing a video and remote players want to hear the voice synced with the video audio.
     /// </summary>
     [UdonBehaviourSyncMode(BehaviourSyncMode.NoVariableSync)]
+    [AddComponentMenu("Udon Sharp/Video/Examples/Sync Delay Manager")]
     public class SyncDelayManager : UdonSharpBehaviour
     {
         public USharpVideoPlayer videoPlayer;

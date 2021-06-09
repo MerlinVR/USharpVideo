@@ -11,8 +11,9 @@ using UnityEditor;
 using UdonSharpEditor;
 #endif
 
-namespace UdonSharp.Video.Internal
+namespace UdonSharp.Video.UI
 {
+    [AddComponentMenu("Udon Sharp/Video/UI/Styler")]
     internal class UIStyler : MonoBehaviour
     {
 #pragma warning disable CS0649

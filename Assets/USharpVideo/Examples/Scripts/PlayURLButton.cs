@@ -11,6 +11,7 @@ namespace UdonSharp.Video.Examples
     /// Plays a specified video URL when OnButtonPress is triggered by a button in this example. See the URLButton prefab for a use of this.
     /// </summary>
     [UdonBehaviourSyncMode(BehaviourSyncMode.NoVariableSync)]
+    [AddComponentMenu("Udon Sharp/Video/Examples/Play URL Button")]
     public class PlayURLButton : UdonSharpBehaviour
     {
         public USharpVideoPlayer targetVideoPlayer;

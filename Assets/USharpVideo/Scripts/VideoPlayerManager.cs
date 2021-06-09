@@ -20,6 +20,7 @@ namespace UdonSharp.Video
     /// Prior to using this, people would get confused and change settings on the Udon video player components which would break things
     /// </summary>
     [UdonBehaviourSyncMode(BehaviourSyncMode.NoVariableSync)]
+    [AddComponentMenu("Udon Sharp/Video/Internal/Video Player Manager")]
     public class VideoPlayerManager : UdonSharpBehaviour
     {
         public USharpVideoPlayer receiver;

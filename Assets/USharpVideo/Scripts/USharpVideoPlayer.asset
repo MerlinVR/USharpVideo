@@ -616,7 +616,7 @@ MonoBehaviour:
       Data: 42|UnityEngine.TooltipAttribute, UnityEngine.CoreModule
     - Name: tooltip
       Entry: 1
-      Data: The max range of the audio sources
+      Data: The max range of the audio sources on this video player
     - Name: 
       Entry: 8
       Data: 

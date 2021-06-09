@@ -79,7 +79,9 @@ namespace UdonSharp.Video.Internal
             EditorGUILayout.LabelField("Audio", EditorStyles.boldLabel);
 
             EditorGUI.BeginChangeCheck();
+            EditorGUI.BeginDisabledGroup(EditorApplication.isPlayingOrWillChangePlaymode);
             EditorGUILayout.PropertyField(defaultVolumeProperty);
+            EditorGUI.EndDisabledGroup();
             EditorGUILayout.PropertyField(audioRangeProperty);
 
             if (EditorGUI.EndChangeCheck())

@@ -7,7 +7,7 @@ using VRC.Udon;
 
 namespace UdonSharp.Video
 {
-    [AddComponentMenu("Udon Sharp/Video/Sync Mode Controller")]
+    [AddComponentMenu("Udon Sharp/Video/UI/Sync Mode Controller")]
     [UdonBehaviourSyncMode(BehaviourSyncMode.NoVariableSync)]
     public class SyncModeController : UdonSharpBehaviour
     {

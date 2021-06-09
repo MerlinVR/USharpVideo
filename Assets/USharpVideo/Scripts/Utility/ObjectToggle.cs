@@ -4,8 +4,9 @@ using UnityEngine;
 using VRC.SDKBase;
 using VRC.Udon;
 
-namespace UdonSharp.Video
+namespace UdonSharp.Video.Internal
 {
+    [AddComponentMenu("Udon Sharp/Video/Internal/Object Toggle")]
     public class ObjectToggle : UdonSharpBehaviour
     {
 #pragma warning disable CS0649

@@ -7,7 +7,7 @@ using VRC.Udon;
 
 namespace UdonSharp.Video
 {
-    [AddComponentMenu("Udon Sharp/Video/Volume Controller")]
+    [AddComponentMenu("Udon Sharp/Video/UI/Volume Controller")]
     [UdonBehaviourSyncMode(BehaviourSyncMode.NoVariableSync)]
     public class VolumeController : UdonSharpBehaviour
     {

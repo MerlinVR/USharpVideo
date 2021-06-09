@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace UdonSharp.Video.Internal
+namespace UdonSharp.Video.UI
 {
+    [AddComponentMenu("Udon Sharp/Video/UI/Style Markup")]
     internal class UIStyleMarkup : MonoBehaviour
     {
         public enum StyleClass

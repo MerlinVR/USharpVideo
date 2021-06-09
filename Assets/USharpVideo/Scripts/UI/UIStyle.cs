@@ -1,13 +1,9 @@
 ﻿
 using UnityEngine;
 using System;
-using static UdonSharp.Video.Internal.UIStyleMarkup;
+using static UdonSharp.Video.UI.UIStyleMarkup;
 
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
-
-namespace UdonSharp.Video.Internal
+namespace UdonSharp.Video.UI
 {
     [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
     internal class StyleMarkupLinkAttribute : Attribute
@@ -57,29 +53,4 @@ namespace UdonSharp.Video.Internal
         [StyleMarkupLink(StyleClass.TextCaret)]
         public Color textCaretColor = Color.white;
     }
-
-//#if UNITY_EDITOR
-
-
-//    [CustomEditor(typeof(UIStyle))]
-//    internal class ColorStyleEditor : Editor
-//    {
-//        SerializedProperty[] fieldProperties;
-
-//        private void OnEnable()
-//        {
-//            FieldInfo[] fields = target.GetType().GetFields(BindingFlags.Public | BindingFlags.Instance);
-
-//            fieldProperties = fields.Select(e => serializedObject.FindProperty(e.Name)).Where(e => e != null).ToArray();
-//        }
-
-//        public override void OnInspectorGUI()
-//        {
-//            foreach (SerializedProperty property in fieldProperties)
-//                EditorGUILayout.PropertyField(property);
-
-//            serializedObject.ApplyModifiedProperties();
-//        }
-//    }
-//#endif
 }

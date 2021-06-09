@@ -13,6 +13,7 @@ using UdonSharpEditor;
 namespace UdonSharp.Video
 {
     [UdonBehaviourSyncMode(BehaviourSyncMode.NoVariableSync)]
+    [AddComponentMenu("Udon Sharp/Video/Utilities/Render Texture Output")]
     public class RenderTextureOutput : UdonSharpBehaviour
     {
 #pragma warning disable CS0649

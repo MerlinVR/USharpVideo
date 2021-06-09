@@ -1149,7 +1149,9 @@ namespace UdonSharp.Video
             if (_videoPlayerManager)
                 return _videoPlayerManager;
 
-            _videoPlayerManager = GetComponentInChildren<VideoPlayerManager>();
+            _videoPlayerManager = GetComponentInChildren<VideoPlayerManager>(true);
+            if (_videoPlayerManager == null)
+                LogError("Video Player Manager not found, make sure you have a manager setup properly");
 
             return _videoPlayerManager;
         }

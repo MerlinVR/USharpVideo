@@ -14,7 +14,7 @@ using VRC.Udon;
 
 namespace UdonSharp.Video
 {
-    [AddComponentMenu("Udon Sharp/Video/Example Video Player")]
+    [AddComponentMenu("Udon Sharp/Video/Examples/Example Video Player")]
     public class ExampleVideoPlayer : UdonSharpBehaviour
     {
         public VRCUrlInputField inputField;

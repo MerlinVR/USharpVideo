@@ -11,6 +11,7 @@ namespace UdonSharp.Video.Examples
     /// You could use SendCustomEvent on the video player itself from the click events on the button, but that's not as easy to document and explain
     /// </summary>
     [UdonBehaviourSyncMode(BehaviourSyncMode.NoVariableSync)]
+    [AddComponentMenu("Udon Sharp/Video/Examples/Reload Button")]
     public class ReloadButton : UdonSharpBehaviour
     {
         public USharpVideoPlayer targetVideoPlayer;
