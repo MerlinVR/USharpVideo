@@ -3,6 +3,7 @@ A basic video player made for VRChat using Udon and UdonSharp. Supports normal v
 
 ![image](https://user-images.githubusercontent.com/36685500/121757261-d4acc480-cad1-11eb-9455-c61b676b9e99.png)
 
+### See the [Wiki](https://github.com/MerlinVR/USharpVideo/wiki) for more info on advanced configuration and tips + guides
 
 ## Features
 - Allows master only/everyone lock toggle for video playing
