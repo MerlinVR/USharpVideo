@@ -20,3 +20,5 @@ A basic video player made for VRChat using Udon and UdonSharp. Supports normal v
 3. Optionally bake realtime GI for the scene
 
 There is also an example scene with the video player setup with lightmapping and everything in the `USharpVideo/Scenes` directory.
+
+### See the [Wiki](https://github.com/MerlinVR/USharpVideo/wiki) for more info on advanced configuration and tips + guides
