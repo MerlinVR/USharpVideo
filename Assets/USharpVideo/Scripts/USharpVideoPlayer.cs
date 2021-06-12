@@ -30,10 +30,10 @@ namespace UdonSharp.Video
         
         [Tooltip("How often the video player should check if it is more than Sync Threshold out of sync with the video time")]
         [PublicAPI]
-        public float syncFrequency = 5.0f;
+        public float syncFrequency = 8.0f;
         [Tooltip("How many seconds desynced from the owner the client needs to be to trigger a resync")]
         [PublicAPI]
-        public float syncThreshold = 0.75f;
+        public float syncThreshold = 0.85f;
         
         [Range(0f, 1f)]
         [Tooltip("The default volume for the volume slider on the video player")]
@@ -470,11 +470,7 @@ namespace UdonSharp.Video
                 SetPlayerMode(currentPlayerMode);
 
             if (_isMasterOnly != _lastMasterLocked)
-            {
-                SetUILocked(_isMasterOnly);
-                SendCallback("OnUSharpVideoLockChange");
-                _lastMasterLocked = _isMasterOnly;
-            }
+                SetLockedInternal(_isMasterOnly);
 
             if (_currentVideoIdx != _syncedVideoIdx)
             {
@@ -1009,12 +1005,13 @@ namespace UdonSharp.Video
         [PublicAPI]
         public void SetLocked(bool locked)
         {
-            if (!Networking.IsMaster)
-                return;
+            if (Networking.IsOwner(gameObject))
+                SetLockedInternal(locked);
+        }
 
-            TakeOwnership();
-
-            _isMasterOnly = !_isMasterOnly;
+        private void SetLockedInternal(bool locked)
+        {
+            _isMasterOnly = locked;
             _lastMasterLocked = _isMasterOnly;
 
             SetUILocked(locked);
