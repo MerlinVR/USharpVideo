@@ -11050,7 +11050,7 @@ PrefabInstance:
     - target: {fileID: 4243133186750495829, guid: c5c1ad6c9826c164dbe172a9515029b2,
         type: 3}
       propertyPath: m_Text
-      value: Shinkai
+      value: Shinkai - Eve
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: c5c1ad6c9826c164dbe172a9515029b2, type: 3}
