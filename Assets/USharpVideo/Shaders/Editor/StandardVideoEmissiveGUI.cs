@@ -85,6 +85,7 @@ namespace UnityEditor
         MaterialProperty uvSetSecondary = null;
         MaterialProperty emissiveBoost = null;
         MaterialProperty isAVProInput = null;
+        MaterialProperty aspectRatio = null;
 
         MaterialEditor m_MaterialEditor;
         WorkflowMode m_WorkflowMode = WorkflowMode.Specular;
@@ -127,6 +128,7 @@ namespace UnityEditor
             uvSetSecondary = FindProperty("_UVSec", props);
             emissiveBoost = FindProperty("_MetaPassEmissiveBoost", props);
             isAVProInput = FindProperty("_IsAVProInput", props);
+            aspectRatio = FindProperty("_TargetAspectRatio", props);
         }
 
         public override void OnGUI(MaterialEditor materialEditor, MaterialProperty[] props)
@@ -303,6 +305,7 @@ namespace UnityEditor
             }
 
             m_MaterialEditor.ShaderProperty(isAVProInput, "Is AVPro input");
+            m_MaterialEditor.ShaderProperty(aspectRatio, new GUIContent("Aspect ratio", "The aspect ratio of the video surface width/height. Default of 1.777 is a 16:9 widescreen aspect ratio"));
         }
 
         void DoSpecularMetallicArea()

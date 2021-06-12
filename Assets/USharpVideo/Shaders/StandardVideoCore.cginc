@@ -15,16 +15,52 @@
 #include "AutoLight.cginc"
 
 int         _IsAVProInput;
+float _TargetAspectRatio;
+float4 _EmissionMap_TexelSize;
 
 half3 VideoEmission(float2 uv)
 {
 #ifndef _EMISSION
     return 0;
 #else
+    float2 emissionRes = _EmissionMap_TexelSize.zw;
+
+    float currentAspectRatio = emissionRes.x / emissionRes.y;
+
+    float visibility = 1.0;
+
+    // If the aspect ratio does not match the target ratio, then we fit the UVs to maintain the aspect ratio while fitting the range 0-1
+    if (abs(currentAspectRatio - _TargetAspectRatio) > 0.001)
+    {
+        float2 normalizedVideoRes = float2(emissionRes.x / _TargetAspectRatio, emissionRes.y);
+        float2 correctiveScale;
+        
+        // Find which axis is greater, we will clamp to that
+        if (normalizedVideoRes.x > normalizedVideoRes.y)
+            correctiveScale = float2(1, normalizedVideoRes.y / normalizedVideoRes.x);
+        else
+            correctiveScale = float2(normalizedVideoRes.x / normalizedVideoRes.y, 1);
+
+        uv = ((uv - 0.5) / correctiveScale) + 0.5;
+
+        // Antialiasing on UV clipping
+        float2 uvPadding = (1 / emissionRes) * 0.1;
+        float2 uvfwidth = fwidth(uv.xy);
+        float2 maxFactor = smoothstep(uvfwidth + uvPadding + 1, uvPadding + 1, uv.xy);
+        float2 minFactor = smoothstep(-uvfwidth - uvPadding, -uvPadding, uv.xy);
+
+        visibility = maxFactor.x * maxFactor.y * minFactor.x * minFactor.y;
+
+        //if (any(uv <= 0) || any(uv >= 1))
+        //    return float3(0, 0, 0);
+    }
+
+    float3 texColor = tex2D(_EmissionMap, _IsAVProInput ? float2(uv.x, 1 - uv.y) : uv).rgb;
+
     if (_IsAVProInput)
-        return pow(tex2D(_EmissionMap, float2(uv.x, 1 - uv.y)).rgb, 2.2f) * _EmissionColor.rgb;
-    else
-        return tex2D(_EmissionMap, uv).rgb * _EmissionColor.rgb;
+        texColor = pow(texColor, 2.2f);
+
+    return texColor * _EmissionColor.rgb * visibility;
 #endif
 }
 
