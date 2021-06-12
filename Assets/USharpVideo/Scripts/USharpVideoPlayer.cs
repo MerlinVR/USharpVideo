@@ -448,9 +448,12 @@ namespace UdonSharp.Video
             UpdateRenderTexture(); // Needed because AVPro can swap textures whenever
         }
 
+        /// <summary>
+        /// Uncomment this to prevent people from taking ownership of the video player when they shouldn't be able to
+        /// </summary>
         //public override bool OnOwnershipRequest(VRCPlayerApi requestingPlayer, VRCPlayerApi requestedOwner)
         //{
-        //    return !_isMasterOnly || requestedOwner.isMaster || requestedOwner.isInstanceOwner;
+        //    return !_isMasterOnly || IsPrivlegedUser(requestedOwner);
         //}
 
         bool _lastMasterLocked = false;
@@ -903,17 +906,30 @@ namespace UdonSharp.Video
         }
         
         /// <summary>
-        /// Determines if the player can control this video player. This means the player is either the master, the instance creator, or the video player is unlocked.
+        /// Determines if the local player can control this video player. This means the player is either the master, the instance creator, or the video player is unlocked.
         /// </summary>
         /// <returns></returns>
         [PublicAPI]
         public bool CanControlVideoPlayer()
         {
+            return !_isMasterOnly || IsPrivilegedUser(Networking.LocalPlayer);
+        }
+
+        /// <summary>
+        /// If the given player is allowed to take important actions on this video player such as changing the video or locking the video player.
+        /// This is what you would extend if you want to add an access control list or something similar.
+        /// </summary>
+        /// <param name="player"></param>
+        /// <returns></returns>
+        [PublicAPI]
+        public bool IsPrivilegedUser(VRCPlayerApi player)
+        {
 #if UNITY_EDITOR
-            return Networking.IsMaster || !_isMasterOnly;
-#else
-            return Networking.IsMaster || !_isMasterOnly || (allowInstanceCreatorControl && Networking.LocalPlayer.isInstanceOwner);
+            if (player == null)
+                return true;
 #endif
+
+            return player.isMaster || (allowInstanceCreatorControl && player.isInstanceOwner);
         }
 
         /// <summary>

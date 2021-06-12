@@ -370,8 +370,11 @@ namespace UdonSharp.Video
 
         public void OnLockButtonPress()
         {
-            targetVideoPlayer.TakeOwnership();
-            targetVideoPlayer.SetLocked(!targetVideoPlayer.IsLocked());
+            if (targetVideoPlayer.IsPrivilegedUser(Networking.LocalPlayer))
+            {
+                targetVideoPlayer.TakeOwnership();
+                targetVideoPlayer.SetLocked(!targetVideoPlayer.IsLocked());
+            }
         }
 
         public void OnReloadButtonPressed()
