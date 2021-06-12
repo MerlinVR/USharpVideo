@@ -164,7 +164,8 @@ namespace UdonSharp.Video
             if (_registeredControlHandlers == null)
                 _registeredControlHandlers = new VideoControlHandler[0];
 
-            _registeredCallbackReceivers = new UdonSharpBehaviour[0];
+            if (_registeredCallbackReceivers == null)
+                _registeredCallbackReceivers = new UdonSharpBehaviour[0];
 
             if (Networking.IsOwner(gameObject))
             {

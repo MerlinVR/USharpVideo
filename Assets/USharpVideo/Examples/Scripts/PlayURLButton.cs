@@ -29,11 +29,7 @@ namespace UdonSharp.Video.Examples
 
         public void OnButtonPress()
         {
-            if (targetVideoPlayer.CanControlVideoPlayer())
-            {
-                targetVideoPlayer.TakeOwnership();
-                targetVideoPlayer.PlayVideo(url);
-            }
+            targetVideoPlayer.PlayVideo(url);
         }
 
         public void OnUSharpVideoLockChange()
