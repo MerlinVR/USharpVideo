@@ -696,6 +696,8 @@ namespace UdonSharp.Video
                 float offsetTime = Mathf.Clamp((float)(GetNetworkTime() - _videoStartNetworkTime) + localSyncOffset, 0f, _videoPlayerManager.GetDuration());
 #endif
 
+                float syncNudgeTime = Mathf.Max(0f, offsetTime - 1f);
+                _videoPlayerManager.SetTime(syncNudgeTime); // Seek to slightly earlier before syncing to the real time to get the video player to jump cleanly
                 _videoPlayerManager.SetTime(offsetTime);
                 LogMessage($"Syncing video to {offsetTime:N2}");
             }
