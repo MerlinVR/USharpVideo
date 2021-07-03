@@ -24,4 +24,11 @@ A basic video player made for VRChat using Udon and UdonSharp. Supports normal v
 2. Drag the USharpVideo prefab into your scene, resize to fit
 3. Optionally bake realtime GI for the scene
 
-There is also an example scene with the video player setup with lightmapping and everything in the `USharpVideo/Examples/Scenes` directory.
+There is also an example scene with the video player setup with lightmapping and everything in the `USharpVideo/Examples` directory.
+
+## FAQ
+### Does YouTube work on Quest?
+No. There is no mechanism to support YouTube videos on Quest reasonably that will not be broken by VRChat the momement it is implemented.
+
+### Are videos supported on Quest?
+Yes, kind of. You must have a direct link to a .mp4 video for videos to work on Quest. This is because Quest does not have YouTubeDL which is needed to resolve links that are not pointing directly to a video file. Which is why YouTube is not supported.
