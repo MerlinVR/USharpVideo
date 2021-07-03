@@ -28,7 +28,7 @@ There is also an example scene with the video player setup with lightmapping and
 
 ## FAQ
 ### Does YouTube work on Quest?
-No. There is no mechanism to support YouTube videos on Quest reasonably that will not be broken by VRChat the momement it is implemented.
+No. There is no mechanism to support YouTube videos on Quest reasonably that will not be broken by VRChat the momement it is implemented. Users can however use link resolver services like [Jinnai](https://t-ne.x0.to/) which allow Quest players to play videos input by desktop users.
 
 ### Are videos supported on Quest?
 Yes, kind of. You must have a direct link to a .mp4 video for videos to work on Quest. This is because Quest does not have YouTubeDL which is needed to resolve links that are not pointing directly to a video file. Which is why YouTube is not supported.
