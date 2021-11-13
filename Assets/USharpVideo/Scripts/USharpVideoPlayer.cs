@@ -196,6 +196,8 @@ namespace UdonSharp.Video
 
             // Serialize the default setup state from the master once regardless of if a video has played
             QueueSerialize();
+            
+            LogMessage("USharpVideo v1.0.1 Initialized");
         }
 
         public override void OnVideoReady()
@@ -362,7 +364,8 @@ namespace UdonSharp.Video
                 _currentLoadingTime = RATE_LIMIT_RETRY_TIMEOUT;
                 return;
             }
-            else if (videoError == VideoError.PlayerError)
+            
+            if (videoError == VideoError.PlayerError)
             {
                 SetStatusText("Video error, retrying...");
                 LogError("Video player error when trying to load " + _syncedURL);
@@ -456,7 +459,7 @@ namespace UdonSharp.Video
         //    return !_isMasterOnly || IsPrivlegedUser(requestedOwner);
         //}
 
-        bool _lastMasterLocked = false;
+        bool _lastMasterLocked;
 
         public override void OnDeserialization()
         {
@@ -475,6 +478,9 @@ namespace UdonSharp.Video
 
             if (_isMasterOnly != _lastMasterLocked)
                 SetLockedInternal(_isMasterOnly);
+            
+            if (!_ownerPlaying && _videoPlayerManager.IsPlaying())
+                _videoPlayerManager.Stop();
 
             if (_currentVideoIdx != _syncedVideoIdx)
             {
@@ -527,11 +533,11 @@ namespace UdonSharp.Video
         }
 
         // Supposedly there's some case where late joiners don't receive data, so do a serialization just in case here.
-        //public override void OnPlayerJoined(VRCPlayerApi player)
-        //{
-        //    if (!player.isLocal)
-        //        QueueSerialize();
-        //}
+        public override void OnPlayerJoined(VRCPlayerApi player)
+        {
+            if (!player.isLocal)
+                QueueSerialize();
+        }
 
         /// <summary>
         /// Stops playback of the video completely and clears data
@@ -552,6 +558,7 @@ namespace UdonSharp.Video
             _videoTargetStartTime = 0f;
             _lastCurrentTime = 0f;
 
+            _videoPlayerManager.Stop();
             SetUIPaused(false);
             ResetVideoLoad();
 
@@ -594,7 +601,6 @@ namespace UdonSharp.Video
             if (stopPlaylist)
                 _nextPlaylistIndex = -1;
             
-            _videoPlayerManager.Stop();
             StopVideo();
 
             _syncedURL = url;
