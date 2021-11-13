@@ -18,21 +18,24 @@ namespace UdonSharp.Video.Internal
     /// </summary>
     public static class EditorURLResolverShim
     {
-        static string youtubeDLPath = "";
-        static HashSet<System.Diagnostics.Process> runningYTDLProcesses = new HashSet<System.Diagnostics.Process>();
-        static HashSet<MonoBehaviour> registeredBehaviours = new HashSet<MonoBehaviour>();
-        static DateTime lastRequestTime = DateTime.MinValue;
-
+        private static string _youtubeDLPath = "";
+        private static HashSet<System.Diagnostics.Process> _runningYtdlProcesses = new HashSet<System.Diagnostics.Process>();
+        private static HashSet<MonoBehaviour> _registeredBehaviours = new HashSet<MonoBehaviour>();
+        
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        static void SetupURLResolveCallback()
+        private static void SetupURLResolveCallback()
         {
             string[] splitPath = Application.persistentDataPath.Split('/', '\\');
-            youtubeDLPath = string.Join("\\", splitPath.Take(splitPath.Length - 2)) + "\\VRChat\\VRChat\\Tools\\youtube-dl.exe";
-            //youtubeDLPath = "D:/Merlin/Desktop/youtube-dl.exe";
+            _youtubeDLPath = string.Join("\\", splitPath.Take(splitPath.Length - 2)) + "\\VRChat\\VRChat\\Tools\\yt-dlp.exe";
             
-            if (!File.Exists(youtubeDLPath))
+            if (!File.Exists(_youtubeDLPath))
             {
-                Debug.LogWarning("[USharpVideo YTDL] Unable to find VRC YouTube-dl installation, URLs will not be resolved.");
+                _youtubeDLPath = string.Join("\\", splitPath.Take(splitPath.Length - 2)) + "\\VRChat\\VRChat\\Tools\\youtube-dl.exe";
+            }
+            
+            if (!File.Exists(_youtubeDLPath))
+            {
+                Debug.LogWarning("[USharpVideo YTDL] Unable to find VRC YouTube-DL or YT-DLP installation, URLs will not be resolved in editor test your videos in game.");
                 return;
             }
 
@@ -49,7 +52,7 @@ namespace UdonSharp.Video.Internal
         {
             if (change == PlayModeStateChange.ExitingPlayMode)
             {
-                foreach (var process in runningYTDLProcesses)
+                foreach (var process in _runningYtdlProcesses)
                 {
                     if (!process.HasExited)
                     {
@@ -58,17 +61,17 @@ namespace UdonSharp.Video.Internal
                     }
                 }
 
-                runningYTDLProcesses.Clear();
+                _runningYtdlProcesses.Clear();
 
                 // Apparently the URLResolveCoroutine will run after this method in some cases magically. So don't because the process will throw an exception.
-                foreach (MonoBehaviour behaviour in registeredBehaviours)
+                foreach (MonoBehaviour behaviour in _registeredBehaviours)
                     behaviour.StopAllCoroutines();
 
-                registeredBehaviours.Clear();
+                _registeredBehaviours.Clear();
             }
         }
 
-        static void ResolveURLCallback(VRCUrl url, int resolution, UnityEngine.Object videoPlayer, Action<string> urlResolvedCallback, Action<VideoError> errorCallback)
+        private static void ResolveURLCallback(VRCUrl url, int resolution, UnityEngine.Object videoPlayer, Action<string> urlResolvedCallback, Action<VideoError> errorCallback)
         {
             // Broken for some unknown reason, when multiple rate limits fire off, only fires the first callback.
             //if ((System.DateTime.UtcNow - lastRequestTime).TotalSeconds < 5.0)
@@ -77,34 +80,32 @@ namespace UdonSharp.Video.Internal
             //    errorCallback(VideoError.RateLimited);
             //    return;
             //}
-
-            lastRequestTime = System.DateTime.UtcNow;
-
-            System.Diagnostics.Process ytdlProcess = new System.Diagnostics.Process();
+            
+            var ytdlProcess = new System.Diagnostics.Process();
 
             ytdlProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
             ytdlProcess.StartInfo.CreateNoWindow = true;
             ytdlProcess.StartInfo.UseShellExecute = false;
             ytdlProcess.StartInfo.RedirectStandardOutput = true;
-            ytdlProcess.StartInfo.FileName = youtubeDLPath;
+            ytdlProcess.StartInfo.FileName = _youtubeDLPath;
             ytdlProcess.StartInfo.Arguments = $"--no-check-certificate --no-cache-dir --rm-cache-dir -f \"mp4[height<=?{resolution}]/best[height<=?{resolution}]\" --get-url \"{url}\"";
 
             Debug.Log($"[<color=#9C6994>USharpVideo YTDL</color>] Attempting to resolve URL '{url}'");
 
             ytdlProcess.Start();
-            runningYTDLProcesses.Add(ytdlProcess);
+            _runningYtdlProcesses.Add(ytdlProcess);
 
             ((MonoBehaviour)videoPlayer).StartCoroutine(URLResolveCoroutine(url.ToString(), ytdlProcess, videoPlayer, urlResolvedCallback, errorCallback));
 
-            registeredBehaviours.Add((MonoBehaviour)videoPlayer);
+            _registeredBehaviours.Add((MonoBehaviour)videoPlayer);
         }
 
-        static IEnumerator URLResolveCoroutine(string originalUrl, System.Diagnostics.Process ytdlProcess, UnityEngine.Object videoPlayer, Action<string> urlResolvedCallback, Action<VideoError> errorCallback)
+        private static IEnumerator URLResolveCoroutine(string originalUrl, System.Diagnostics.Process ytdlProcess, UnityEngine.Object videoPlayer, Action<string> urlResolvedCallback, Action<VideoError> errorCallback)
         {
             while (!ytdlProcess.HasExited)
                 yield return new WaitForSeconds(0.1f);
 
-            runningYTDLProcesses.Remove(ytdlProcess);
+            _runningYtdlProcesses.Remove(ytdlProcess);
 
             string resolvedURL = ytdlProcess.StandardOutput.ReadLine();
 
