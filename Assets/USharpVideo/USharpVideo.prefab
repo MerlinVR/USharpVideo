@@ -6426,7 +6426,7 @@ AudioSource:
   m_Pitch: 1
   Loop: 0
   Mute: 0
-  Spatialize: 1
+  Spatialize: 0
   SpatializePostEffects: 0
   Priority: 128
   DopplerLevel: 0
@@ -6540,7 +6540,7 @@ MonoBehaviour:
   Far: 30
   Near: 0
   VolumetricRadius: 0.5
-  EnableSpatialization: 1
+  EnableSpatialization: 0
   UseAudioSourceVolumeCurve: 1
 --- !u!1 &6421412928797738509
 GameObject:
