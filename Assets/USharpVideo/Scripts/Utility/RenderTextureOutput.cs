@@ -38,7 +38,7 @@ namespace UdonSharp.Video
         {
             Texture videoPlayerTex = videoPlayerManager.GetVideoTexture();
 
-            if (lastTex != videoPlayerManager)
+            if (lastTex != videoPlayerTex)
             {
                 outputMat.SetTexture("_SourceTexture", videoPlayerTex);
                 outputMat.SetInt("_IsAVPro", System.Convert.ToInt32(sourceVideoPlayer.IsUsingAVProPlayer()));
