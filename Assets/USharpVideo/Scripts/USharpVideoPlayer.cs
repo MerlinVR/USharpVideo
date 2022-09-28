@@ -277,8 +277,11 @@ namespace UdonSharp.Video
 #else
                 _videoStartNetworkTime = GetNetworkTime() - _videoTargetStartTime;
 #endif
-
-                _videoPlayerManager.SetTime(_videoTargetStartTime);
+    
+                if (IsInVideoMode())
+                {
+                    _videoPlayerManager.SetTime(_videoTargetStartTime);
+                }
 
                 _ownerPlaying = true;
 
