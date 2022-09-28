@@ -15,7 +15,7 @@ namespace UdonSharp.Video.Examples
     public class PlayURLButton : UdonSharpBehaviour
     {
         public USharpVideoPlayer targetVideoPlayer;
-        public VRCUrl url = VRCUrl.Empty;
+        public VRCUrl url = new VRCUrl("");
 
         Button button;
 
