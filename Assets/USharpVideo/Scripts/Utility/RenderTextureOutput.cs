@@ -18,13 +18,13 @@ namespace UdonSharp.Video
     {
 #pragma warning disable CS0649
         [SerializeField]
-        USharpVideoPlayer sourceVideoPlayer;
-        VideoPlayerManager videoPlayerManager;
+        private USharpVideoPlayer sourceVideoPlayer;
+        private VideoPlayerManager videoPlayerManager;
 #pragma warning restore CS0649
 
         public CustomRenderTexture outputTexture;
 
-        Material outputMat;
+        private Material outputMat;
 
         private void Start()
         {
@@ -32,7 +32,7 @@ namespace UdonSharp.Video
             videoPlayerManager = sourceVideoPlayer.GetComponentInChildren<VideoPlayerManager>(true);
         }
 
-        Texture lastTex;
+        private Texture lastTex;
 
         private void LateUpdate()
         {
@@ -56,7 +56,7 @@ namespace UdonSharp.Video
         {
             public RenderTextureOutput targetOutput;
 
-            Vector2Int resolution = new Vector2Int(1920, 1080);
+            private Vector2Int resolution = new Vector2Int(1920, 1080);
 
             private void OnGUI()
             {
@@ -102,8 +102,8 @@ namespace UdonSharp.Video
             }
         }
 
-        SerializedProperty sourceVideoPlayerProperty;
-        SerializedProperty outputTextureProperty;
+        private SerializedProperty sourceVideoPlayerProperty;
+        private SerializedProperty outputTextureProperty;
 
         private void OnEnable()
         {
