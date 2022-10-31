@@ -5,7 +5,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using VRC.SDK3.Components;
 using VRC.SDKBase;
-using VRC.Udon;
 
 namespace UdonSharp.Video
 {
@@ -130,7 +129,7 @@ namespace UdonSharp.Video
             if (masterField)
             {
                 VRCPlayerApi owner = Networking.GetOwner(gameObject);
-                if (Utilities.IsValid(owner))
+                if (owner != null && owner.IsValid())
                     masterField.text = Networking.GetOwner(gameObject).displayName;
             }
 #endif

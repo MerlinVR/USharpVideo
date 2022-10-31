@@ -1476,9 +1476,9 @@ namespace UdonSharp.Video
             }
         }
 
-        Texture _lastAssignedRenderTexture;
+        private Texture _lastAssignedRenderTexture;
 
-        void UpdateRenderTexture()
+        private void UpdateRenderTexture()
         {
             if (_registeredScreenHandlers == null)
                 return;
@@ -1490,8 +1490,10 @@ namespace UdonSharp.Video
 
             foreach (VideoScreenHandler handler in _registeredScreenHandlers)
             {
-                if (Utilities.IsValid(handler))
+                if (handler)
+                {
                     handler.UpdateVideoTexture(renderTexture, IsUsingAVProPlayer());
+                }
             }
 
             _lastAssignedRenderTexture = renderTexture;
@@ -1509,7 +1511,7 @@ namespace UdonSharp.Video
         [PublicAPI]
         public void RegisterCallbackReceiver(UdonSharpBehaviour callbackReceiver)
         {
-            if (!Utilities.IsValid(callbackReceiver))
+            if (!callbackReceiver)
                 return;
 
             if (_registeredCallbackReceivers == null)
@@ -1531,7 +1533,7 @@ namespace UdonSharp.Video
         [PublicAPI]
         public void UnregisterCallbackReceiver(UdonSharpBehaviour callbackReceiver)
         {
-            if (!Utilities.IsValid(callbackReceiver))
+            if (!callbackReceiver)
                 return;
 
             if (_registeredCallbackReceivers == null)
@@ -1559,11 +1561,11 @@ namespace UdonSharp.Video
             }
         }
 
-        void SendCallback(string callbackName)
+        private void SendCallback(string callbackName)
         {
             foreach (UdonSharpBehaviour callbackReceiver in _registeredCallbackReceivers)
             {
-                if (Utilities.IsValid(callbackReceiver))
+                if (callbackReceiver)
                 {
                     callbackReceiver.SendCustomEvent(callbackName);
                 }
