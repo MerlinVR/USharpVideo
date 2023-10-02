@@ -83,6 +83,7 @@ namespace UdonSharp.Video
                 newCRT.initializationMode = CustomRenderTextureUpdateMode.OnLoad;
                 newCRT.initializationColor = Color.black;
                 newCRT.initializationSource = CustomRenderTextureInitializationSource.TextureAndColor;
+                newCRT.depth = 0;
 
                 newCRT.updateMode = CustomRenderTextureUpdateMode.Realtime;
 
