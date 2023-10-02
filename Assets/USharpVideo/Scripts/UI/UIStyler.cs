@@ -1,4 +1,5 @@
 ﻿
+using TMPro;
 using UnityEngine;
 using System.Reflection;
 using System.IO;
@@ -67,6 +68,8 @@ namespace UdonSharp.Video.UI
                 if (markup.styleClass == UIStyleMarkup.StyleClass.TextHighlight)
                 {
                     InputField input = markup.GetComponent<InputField>();
+                    TMP_InputField inputTmp = markup.GetComponent<TMP_InputField>();
+                    VRCUrlInputField vrcInput = markup.GetComponent<VRCUrlInputField>();
 
                     if (input != null)
                     {
@@ -74,18 +77,24 @@ namespace UdonSharp.Video.UI
                         input.selectionColor = graphicColor;
                         RecordObject(input);
                     }
-                    else
+                    else if (inputTmp != null)
                     {
-                        VRCUrlInputField vrcInput = markup.GetComponent<VRCUrlInputField>();
+                        Undo.RecordObject(inputTmp, "Apply UI Style");
+                        inputTmp.selectionColor = graphicColor;
+                        RecordObject(inputTmp);
+                    }
+                    else if (vrcInput != null)
+                    {
                         Undo.RecordObject(vrcInput, "Apply UI Style");
                         vrcInput.selectionColor = graphicColor;
                         RecordObject(vrcInput);
                     }
-
                 }
                 else if (markup.styleClass == UIStyleMarkup.StyleClass.TextCaret)
                 {
                     InputField input = markup.GetComponent<InputField>();
+                    TMP_InputField inputTmp = markup.GetComponent<TMP_InputField>();
+                    VRCUrlInputField vrcInput = markup.GetComponent<VRCUrlInputField>();
 
                     if (input != null)
                     {
@@ -93,9 +102,14 @@ namespace UdonSharp.Video.UI
                         input.caretColor = graphicColor;
                         RecordObject(input);
                     }
-                    else
+                    else if (inputTmp != null)
                     {
-                        VRCUrlInputField vrcInput = markup.GetComponent<VRCUrlInputField>();
+                        Undo.RecordObject(inputTmp, "Apply UI Style");
+                        inputTmp.caretColor = graphicColor;
+                        RecordObject(inputTmp);
+                    }
+                    else if (vrcInput != null)
+                    {
                         Undo.RecordObject(vrcInput, "Apply UI Style");
                         vrcInput.caretColor = graphicColor;
                         RecordObject(vrcInput);
