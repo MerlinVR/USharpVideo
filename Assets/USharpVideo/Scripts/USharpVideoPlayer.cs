@@ -985,10 +985,10 @@ namespace UdonSharp.Video
             {
                 Random.InitState(_shuffleSeed);
 
-                int n = playlist.Length - 1;
-                for (int i = 0; i < n; ++i)
+                for (int i = 0; i < playlist.Length - 1; ++i)
                 {
-                    int r = Random.Range(i + 1, n);
+                    int r = Random.Range(i, playlist.Length);
+                    if (i == r) { continue; }
                     VRCUrl flipVal = playlist[r];
                     playlist[r] = playlist[i];
                     playlist[i] = flipVal;
