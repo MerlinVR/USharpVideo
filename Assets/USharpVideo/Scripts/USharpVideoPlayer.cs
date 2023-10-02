@@ -390,7 +390,7 @@ namespace UdonSharp.Video
                     SetStatusText("Invalid URL");
                     break;
                 case VideoError.AccessDenied:
-                    SetStatusText("Video blocked, enabled untrusted URLs");
+                    SetStatusText("Video blocked, enable untrusted URLs");
                     break;
                 default:
                     SetStatusText("Failed to load video");
