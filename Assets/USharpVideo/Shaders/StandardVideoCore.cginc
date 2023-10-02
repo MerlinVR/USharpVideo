@@ -64,10 +64,12 @@ half3 VideoEmission(float2 uv)
     
     float3 texColor = tex2D(_EmissionMap, uv).rgb;
 
+#ifndef UNITY_COLORSPACE_GAMMA
     if (_IsAVProInput)
     {
         texColor = pow(texColor, 2.2f);
     }
+#endif
 
     return texColor * _EmissionColor.rgb * visibility;
 #endif
