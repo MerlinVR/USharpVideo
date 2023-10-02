@@ -12,6 +12,8 @@ using UnityEditor;
 using UdonSharpEditor;
 #endif
 
+#pragma warning disable CS0612 // Type or member is obsolete
+
 namespace UdonSharp.Video.UI
 {
     [AddComponentMenu("Udon Sharp/Video/UI/Styler")]

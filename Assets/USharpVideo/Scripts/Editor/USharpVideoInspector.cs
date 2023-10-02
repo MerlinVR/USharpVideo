@@ -6,6 +6,8 @@ using UnityEngine;
 using VRC.SDK3.Video.Components.AVPro;
 using System.Reflection;
 
+#pragma warning disable CS0612 // Type or member is obsolete
+
 namespace UdonSharp.Video.Internal
 {
     [CustomEditor(typeof(USharpVideoPlayer))]
