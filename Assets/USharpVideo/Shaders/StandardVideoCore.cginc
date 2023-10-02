@@ -55,10 +55,19 @@ half3 VideoEmission(float2 uv)
         //    return float3(0, 0, 0);
     }
 
-    float3 texColor = tex2D(_EmissionMap, _IsAVProInput ? float2(uv.x, 1 - uv.y) : uv).rgb;
+    #if UNITY_UV_STARTS_AT_TOP
+    if (_IsAVProInput)
+    {
+        uv = float2(uv.x, 1 - uv.y);
+    }
+    #endif
+    
+    float3 texColor = tex2D(_EmissionMap, uv).rgb;
 
     if (_IsAVProInput)
+    {
         texColor = pow(texColor, 2.2f);
+    }
 
     return texColor * _EmissionColor.rgb * visibility;
 #endif

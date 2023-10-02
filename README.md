@@ -19,7 +19,7 @@ A basic video player made for VRChat using Udon and UdonSharp. Supports normal v
 - Supports YouTube link resolution in the editor the same as in VRC
 
 ## Installation
-1. Install the latest VRCSDK and latest release of [UdonSharp](https://github.com/MerlinVR/UdonSharp/releases/latest)
+1. Install the latest VRCSDK and latest release of UdonSharp using the [VRChat Creator Companion](https://vrchat.com/home/download)
 2. Install the [latest](https://github.com/MerlinVR/USharpVideo/releases/latest) release
 2. Drag the USharpVideo prefab into your scene, resize to fit
 3. Optionally bake realtime GI for the scene

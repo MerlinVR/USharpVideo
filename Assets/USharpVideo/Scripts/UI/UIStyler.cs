@@ -26,7 +26,7 @@ namespace UdonSharp.Video.UI
             hideFlags = HideFlags.DontSaveInBuild;
         }
 
-        static Dictionary<UIStyleMarkup.StyleClass, FieldInfo> GetStyleFieldMap()
+        private static Dictionary<UIStyleMarkup.StyleClass, FieldInfo> GetStyleFieldMap()
         {
             Dictionary<UIStyleMarkup.StyleClass, FieldInfo> fieldLookup = new Dictionary<UIStyleMarkup.StyleClass, FieldInfo>();
 
@@ -34,7 +34,7 @@ namespace UdonSharp.Video.UI
             {
                 if (field.FieldType == typeof(Color))
                 {
-                    var markupAttr = field.GetCustomAttribute<StyleMarkupLinkAttribute>();
+                    StyleMarkupLinkAttribute markupAttr = field.GetCustomAttribute<StyleMarkupLinkAttribute>();
 
                     if (markupAttr != null)
                     {
@@ -47,7 +47,7 @@ namespace UdonSharp.Video.UI
         }
 
 #if UNITY_EDITOR
-        Color GetColor(FieldInfo field)
+    private Color GetColor(FieldInfo field)
         {
             return (Color)field.GetValue(uiStyle);
         }
@@ -140,7 +140,7 @@ namespace UdonSharp.Video.UI
             }
         }
 
-        void RecordObject(Component comp)
+        private static void RecordObject(Object comp)
         {
             if (PrefabUtility.IsPartOfPrefabInstance(comp))
                 PrefabUtility.RecordPrefabInstancePropertyModifications(comp);
@@ -152,7 +152,7 @@ namespace UdonSharp.Video.UI
     [CustomEditor(typeof(UIStyler))]
     internal class UIStylerEditor : Editor
     {
-        SerializedProperty colorStyleProperty;
+        private SerializedProperty colorStyleProperty;
 
         private void OnEnable()
         {

@@ -31,11 +31,11 @@ namespace UdonSharp.Video
         public Renderer avProTextureRenderer;
         public AudioSource[] audioSources;
 
-        BaseVRCVideoPlayer _currentPlayer;
-        MaterialPropertyBlock _fetchBlock;
-        Material avproFetchMaterial;
+        private BaseVRCVideoPlayer _currentPlayer;
+        private MaterialPropertyBlock _fetchBlock;
+        private Material avproFetchMaterial;
 
-        bool _initialized = false;
+        private bool _initialized;
 
         public void Start()
         {
@@ -134,8 +134,8 @@ namespace UdonSharp.Video
             }
         }
 
-        float _currentVolume = 1f;
-        bool _currentlyMuted = false;
+        private float _currentVolume = 1f;
+        private bool _currentlyMuted;
 
         public float GetVolume() => _currentVolume;
         public bool IsMuted() => _currentlyMuted;
@@ -173,14 +173,14 @@ namespace UdonSharp.Video
 
 #if UNITY_EDITOR && !COMPILER_UDONSHARP
     [CustomEditor(typeof(VideoPlayerManager))]
-    class VideoPlayerManagerInspector : Editor
+    internal class VideoPlayerManagerInspector : Editor
     {
-        SerializedProperty receiverProperty;
-        SerializedProperty unityVideoProperty;
-        SerializedProperty avProVideoProperty;
-        SerializedProperty unityRendererProperty;
-        SerializedProperty avProRendererProperty;
-        SerializedProperty audioSourcesProperty;
+        private SerializedProperty receiverProperty;
+        private SerializedProperty unityVideoProperty;
+        private SerializedProperty avProVideoProperty;
+        private SerializedProperty unityRendererProperty;
+        private SerializedProperty avProRendererProperty;
+        private SerializedProperty audioSourcesProperty;
 
         private void OnEnable()
         {

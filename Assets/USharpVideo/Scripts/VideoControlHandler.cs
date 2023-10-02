@@ -5,7 +5,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using VRC.SDK3.Components;
 using VRC.SDKBase;
-using VRC.Udon;
 
 namespace UdonSharp.Video
 {
@@ -22,63 +21,63 @@ namespace UdonSharp.Video
         
 #pragma warning disable CS0649
         [SerializeField]
-        VRCUrlInputField urlField;
+        private VRCUrlInputField urlField;
 
         [SerializeField]
-        Text urlFieldPlaceholderText;
+        private Text urlFieldPlaceholderText;
 
         [Header("Status text")]
         [SerializeField]
-        Text statusTextField;
+        private Text statusTextField;
 
         [SerializeField]
-        Text statusTextDropShadow;
+        private Text statusTextDropShadow;
 
         [Header("Video progress bar")]
         [SerializeField]
-        Slider progressSlider;
+        private Slider progressSlider;
 
         [Header("Lock button")]
         [SerializeField]
-        Graphic lockGraphic;
+        private Graphic lockGraphic;
 
         [SerializeField]
-        GameObject masterLockedIcon, masterUnlockedIcon;
+        private GameObject masterLockedIcon, masterUnlockedIcon;
 
         [Header("Info panel fields")]
         [SerializeField]
-        Text masterField;
+        private Text masterField;
 
         [SerializeField]
-        Text ownerField;
+        private Text ownerField;
 
         [SerializeField]
-        InputField currentURLField, previousURLField;
+        private InputField currentURLField, previousURLField;
 
         [Header("Play/Pause/Stop buttons")]
         [SerializeField]
-        GameObject pauseStopObject;
+        private GameObject pauseStopObject;
 
         [SerializeField]
-        GameObject playObject;
+        private GameObject playObject;
 
         [SerializeField]
-        GameObject pauseIcon, stopIcon;
+        private GameObject pauseIcon, stopIcon;
 
         [Header("Loop button")]
         [SerializeField]
-        Graphic loopButtonBackground;
+        private Graphic loopButtonBackground;
 
         [SerializeField]
-        Graphic loopButtonIcon;
+        private Graphic loopButtonIcon;
 
         [Header("Video/Stream controls")]
         [SerializeField]
-        SyncModeController syncController;
+        private SyncModeController syncController;
 
         [Header("Volume")]
         [SerializeField]
-        VolumeController volumeController;
+        private VolumeController volumeController;
 
         [Header("Style Colors")]
         public Color redGraphicColor = new Color(0.632f, 0.19f, 0.19f);
@@ -130,13 +129,13 @@ namespace UdonSharp.Video
             if (masterField)
             {
                 VRCPlayerApi owner = Networking.GetOwner(gameObject);
-                if (Utilities.IsValid(owner))
+                if (owner != null && owner.IsValid())
                     masterField.text = Networking.GetOwner(gameObject).displayName;
             }
 #endif
         }
 
-        void UpdateVideoOwner()
+        private void UpdateVideoOwner()
         {
 #if !UNITY_EDITOR
             if (ownerField)
@@ -270,12 +269,12 @@ namespace UdonSharp.Video
                 syncController.SetStreamVisual();
         }
 
-        int _lastTime = int.MaxValue;
+        private int _lastTime = int.MaxValue;
 
         /// <summary>
         /// Updates UI elements such as the time readout, URL views, and seek bar
         /// </summary>
-        void RunUIUpdate()
+        private void RunUIUpdate()
         {
             if (targetVideoPlayer.IsInVideoMode())
             {
@@ -346,7 +345,7 @@ namespace UdonSharp.Video
         /// </summary>
         /// <param name="time"></param>
         /// <returns></returns>
-        string GetFormattedTime(System.TimeSpan time)
+        private string GetFormattedTime(System.TimeSpan time)
         {
             return ((int)time.TotalHours).ToString("D2") + time.ToString(@"\:mm\:ss");
         }
@@ -406,7 +405,7 @@ namespace UdonSharp.Video
 
         }
 
-        bool _draggingSlider = false;
+        private bool _draggingSlider;
 
         public void OnSeekSliderBeginDrag()
         {

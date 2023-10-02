@@ -10,7 +10,7 @@ namespace UdonSharp.Video
     [AddComponentMenu("Udon Sharp/Video/Utilities/Renderer GI Update")]
     public class RendererGIUpdate : UdonSharpBehaviour
     {
-        Renderer targetRenderer;
+        private Renderer targetRenderer;
 
         void Start()
         {

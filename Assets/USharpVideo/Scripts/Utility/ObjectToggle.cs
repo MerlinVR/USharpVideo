@@ -11,7 +11,7 @@ namespace UdonSharp.Video.Internal
     {
 #pragma warning disable CS0649
         [SerializeField]
-        GameObject[] toggleObjects;
+        private GameObject[] toggleObjects;
 #pragma warning restore CS0649
 
         public void OnToggle()

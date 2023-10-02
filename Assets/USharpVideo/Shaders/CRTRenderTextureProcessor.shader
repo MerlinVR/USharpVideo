@@ -63,7 +63,14 @@
                 if (any(uv <= 0) || any(uv >= 1))
                     return float3(0, 0, 0);
 
-                float3 texColor = tex2D(_SourceTexture, _IsAVPro ? float2(uv.x, 1 - uv.y) : uv).rgb;
+                #if UNITY_UV_STARTS_AT_TOP
+                if (_IsAVPro)
+                {
+                    uv = float2(uv.x, 1 - uv.y);
+                }
+                #endif
+
+                float3 texColor = tex2D(_SourceTexture, uv).rgb;
 
                 if (_IsAVPro)
                     texColor = pow(texColor, 2.2f);
