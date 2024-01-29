@@ -4,6 +4,7 @@ using UnityEngine;
 using VRC.SDKBase;
 using VRC.Udon;
 using System.IO;
+using static VRC.SDKBase.VRCShader;
 
 #if UNITY_EDITOR && !COMPILER_UDONSHARP
 using UnityEditor;
@@ -25,6 +26,7 @@ namespace UdonSharp.Video
 #pragma warning restore CS0649
 
         public CustomRenderTexture outputTexture;
+        public bool useUdonGlobalTexture;
 
         private Material outputMat;
 
@@ -32,6 +34,11 @@ namespace UdonSharp.Video
         {
             outputMat = outputTexture.material;
             videoPlayerManager = sourceVideoPlayer.GetComponentInChildren<VideoPlayerManager>(true);
+
+            if(useUdonGlobalTexture)
+            {
+                SetGlobalTexture(PropertyToID("_Udon_VideoTex"), outputTexture);
+            }
         }
 
         private Texture lastTex;
@@ -107,11 +114,13 @@ namespace UdonSharp.Video
 
         private SerializedProperty sourceVideoPlayerProperty;
         private SerializedProperty outputTextureProperty;
+        private SerializedProperty useUdonGlobalTextureProperty;
 
         private void OnEnable()
         {
             sourceVideoPlayerProperty = serializedObject.FindProperty("sourceVideoPlayer");
             outputTextureProperty = serializedObject.FindProperty("outputTexture");
+            useUdonGlobalTextureProperty = serializedObject.FindProperty("useUdonGlobalTexture");
         }
 
         public override void OnInspectorGUI()
@@ -124,6 +133,7 @@ namespace UdonSharp.Video
                 EditorGUILayout.HelpBox("A source video player must be specified", MessageType.Error);
 
             EditorGUILayout.PropertyField(outputTextureProperty);
+            EditorGUILayout.PropertyField(useUdonGlobalTextureProperty);
 
             serializedObject.ApplyModifiedProperties();
 
