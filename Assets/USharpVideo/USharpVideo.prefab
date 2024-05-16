@@ -8087,7 +8087,7 @@ MonoBehaviour:
   aspectRatio: 3
   targetAudioSources:
   - {fileID: 6421412928723783923}
-  maximumResolution: 720
+  maximumResolution: 1080
 --- !u!114 &6421412929076350978
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8105,7 +8105,7 @@ MonoBehaviour:
     url: 
   autoPlay: 0
   loop: 0
-  maximumResolution: 720
+  maximumResolution: 1080
   useLowLatency: 0
 --- !u!1 &6421412929088574174
 GameObject:
