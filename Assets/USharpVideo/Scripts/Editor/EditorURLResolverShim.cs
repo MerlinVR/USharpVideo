@@ -35,7 +35,7 @@ namespace UdonSharp.Video.Internal
             
             if (!File.Exists(_youtubeDLPath))
             {
-                Debug.LogWarning("[USharpVideo YTDL] Unable to find VRC YouTube-DL or YT-DLP installation, URLs will not be resolved in editor test your videos in game.");
+                Debug.LogWarning("[USharpVideo YTDL] Unable to find VRC YouTube-DL or YT-DLP installation, URLs will not be resolved in editor. Test your videos in game.");
                 return;
             }
 
@@ -88,7 +88,7 @@ namespace UdonSharp.Video.Internal
             ytdlProcess.StartInfo.UseShellExecute = false;
             ytdlProcess.StartInfo.RedirectStandardOutput = true;
             ytdlProcess.StartInfo.FileName = _youtubeDLPath;
-            ytdlProcess.StartInfo.Arguments = $"--no-check-certificate --no-cache-dir --rm-cache-dir -f \"mp4[height<=?{resolution}]/best[height<=?{resolution}]\" --get-url \"{url}\"";
+            ytdlProcess.StartInfo.Arguments = $"--no-check-certificate --no-cache-dir --rm-cache-dir -f \"(mp4/best)[height<=?{resolution}][height>=?64][protocol^=http]\" --get-url \"{url}\"";
 
             Debug.Log($"[<color=#9C6994>USharpVideo YTDL</color>] Attempting to resolve URL '{url}'");
 
