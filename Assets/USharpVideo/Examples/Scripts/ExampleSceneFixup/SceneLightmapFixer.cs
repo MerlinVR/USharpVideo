@@ -193,7 +193,7 @@ namespace UdonSharp.Video.Internal
     }
 
     [CustomEditor(typeof(SceneLightmapFixer))]
-    public class SceneLightmapFixerEditor : Editor
+    public class SceneLightmapFixerEditor : UnityEditor.Editor
     {
         public override void OnInspectorGUI()
         {
