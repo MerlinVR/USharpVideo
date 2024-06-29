@@ -152,7 +152,7 @@ namespace UdonSharp.Video.UI
 
 #if UNITY_EDITOR
     [CustomEditor(typeof(UIStyler))]
-    internal class UIStylerEditor : Editor
+    internal class UIStylerEditor : UnityEditor.Editor
     {
         private SerializedProperty colorStyleProperty;
 
