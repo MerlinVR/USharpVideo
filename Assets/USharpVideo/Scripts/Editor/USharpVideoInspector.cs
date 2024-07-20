@@ -14,6 +14,7 @@ namespace UdonSharp.Video.Internal
     internal class USharpVideoInspector : Editor
     {
         ReorderableList playlistList;
+        ReorderableList allowlistList;
 
         SerializedProperty allowSeekProperty;
         SerializedProperty defaultUnlockedProperty;
@@ -30,6 +31,8 @@ namespace UdonSharp.Video.Internal
         SerializedProperty playlistProperty;
         SerializedProperty loopPlaylistProperty;
         SerializedProperty shufflePlaylistProperty;
+
+        SerializedProperty allowlistProperty;
         
         private void OnEnable()
         {
@@ -48,14 +51,25 @@ namespace UdonSharp.Video.Internal
             loopPlaylistProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.loopPlaylist));
             shufflePlaylistProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.shufflePlaylist));
 
+            allowlistProperty = serializedObject.FindProperty(nameof(USharpVideoPlayer.allowlist));
+
             playlistList = new ReorderableList(serializedObject, playlistProperty, true, true, true, true);
             playlistList.drawElementCallback = (Rect rect, int index, bool isActive, bool isFocused) =>
             {
-                Rect testFieldRect = new Rect(rect.x, rect.y + 2, rect.width, EditorGUIUtility.singleLineHeight);
+                Rect playlistFieldRect = new Rect(rect.x, rect.y + 2, rect.width, EditorGUIUtility.singleLineHeight);
 
-                EditorGUI.PropertyField(testFieldRect, playlistList.serializedProperty.GetArrayElementAtIndex(index), label: new GUIContent());
+                EditorGUI.PropertyField(playlistFieldRect, playlistList.serializedProperty.GetArrayElementAtIndex(index), label: new GUIContent());
             };
             playlistList.drawHeaderCallback = (Rect rect) => { EditorGUI.LabelField(rect, new GUIContent("Default Playlist URLs", "URLs that will play in sequence when you join the world until someone puts in a video.")); };
+
+            allowlistList = new ReorderableList(serializedObject, allowlistProperty, true, true, true, true);
+            allowlistList.drawElementCallback = (Rect rect, int index, bool isActive, bool isFocused) =>
+            {
+                Rect allowlistFieldRect = new Rect(rect.x, rect.y + 2, rect.width, EditorGUIUtility.singleLineHeight);
+
+                EditorGUI.PropertyField(allowlistFieldRect, allowlistList.serializedProperty.GetArrayElementAtIndex(index), label: new GUIContent());
+            };
+            allowlistList.drawHeaderCallback = (Rect rect) => { EditorGUI.LabelField(rect, new GUIContent("Allowed CDN's and video hosting sites", "Add CDN domains such as catbox.moe or youtube.com that you want the video player to allow here.")); };
         }
 
         public override void OnInspectorGUI()
@@ -67,6 +81,7 @@ namespace UdonSharp.Video.Internal
             UdonSharpGUI.DrawUILine();
 
             EditorGUILayout.LabelField("General", EditorStyles.boldLabel);
+            allowlistList.DoLayoutList();
             EditorGUILayout.PropertyField(allowSeekProperty);
             EditorGUILayout.PropertyField(defaultUnlockedProperty);
             EditorGUILayout.PropertyField(allowCreatorControlProperty);

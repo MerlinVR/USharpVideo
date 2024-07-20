@@ -19,7 +19,7 @@ namespace UdonSharp.Video
         [Tooltip("Whether to allow video seeking with the progress bar on the video")]
         [PublicAPI]
         public bool allowSeeking = true;
-        
+
         [Tooltip("If enabled defaults to unlocked so anyone can put in a URL")]
         [SerializeField]
         private bool defaultUnlocked = true;
@@ -27,14 +27,14 @@ namespace UdonSharp.Video
         [Tooltip("If enabled allows the instance creator to always control the video player regardless of if they are master or not")]
         [PublicAPI]
         public bool allowInstanceCreatorControl = true;
-        
+
         [Tooltip("How often the video player should check if it is more than Sync Threshold out of sync with the video time")]
         [PublicAPI]
         public float syncFrequency = 8.0f;
         [Tooltip("How many seconds desynced from the owner the client needs to be to trigger a resync")]
         [PublicAPI]
         public float syncThreshold = 0.85f;
-        
+
         [Range(0f, 1f)]
         [Tooltip("The default volume for the volume slider on the video player")]
         [SerializeField]
@@ -52,9 +52,12 @@ namespace UdonSharp.Video
         /// </summary>
         [PublicAPI, System.NonSerialized]
         public float localSyncOffset;
-        
+
         [Tooltip("List of urls to play automatically when the world is loaded until someone puts in another URL")]
         public VRCUrl[] playlist = new VRCUrl[0];
+
+        [Tooltip("Trusted URL's of websites you want to be able to load videos from. This prevents malicious users from throwing IP grabbers into the player")]
+        public string[] allowlist = new string[0];
 
         [Tooltip("Should default to the stream player? This is usually used when you want to put a live stream in the default playlist.")]
         [SerializeField]
@@ -593,6 +596,9 @@ namespace UdonSharp.Video
                 return;
 
             string urlStr = url.Get();
+
+            if (!isWhitelistedUrl(urlStr))
+                return;
 
             if (!ValidateURL(urlStr))
                 return;
@@ -1235,6 +1241,7 @@ namespace UdonSharp.Video
         /// <param name="url"></param>
         private bool ValidateURL(string url)
         {
+
             if (url.Contains("youtube.com/watch") ||
                 url.Contains("youtu.be/"))
             {
@@ -1305,6 +1312,28 @@ namespace UdonSharp.Video
         {
             Debug.LogError("[<color=#FF00FF>USharpVideo</color>] " + message, this);
         }
+
+        private bool isWhitelistedUrl(string url)
+        {
+            bool isWhitelisted = false;
+
+            foreach (string whitelist_url in allowlist)
+            {
+                if (url.Contains($"{whitelist_url}" + "/"))
+                {
+                    isWhitelisted = true;
+
+                    Debug.Log($"{whitelist_url} is whitelisted domain");
+
+                    return true;
+                }
+            }
+
+            Debug.LogWarning("DOMAIN IS NOT WHITELISTED!!!");
+
+            return false;
+        }
+
 #endregion
 
 #region UI Control handling
