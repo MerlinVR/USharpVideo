@@ -31,15 +31,9 @@ namespace UdonSharp.Video
         private Renderer targetRenderer;
         private Texture lastRenderTexture;
 
-        private void Start()
-        {
-            targetRenderer = GetComponent<Renderer>();
-
-            OnEnable();
-        }
-
         private void OnEnable()
         {
+            targetRenderer = GetComponent<Renderer>();
             SetSourceVideoPlayer(sourceVideoPlayer);
         }
 
@@ -57,9 +51,6 @@ namespace UdonSharp.Video
 
         public void UpdateVideoTexture(Texture renderTexture, bool isAVPro)
         {
-            if (renderTexture == lastRenderTexture)
-                return;
-
             if (targetRenderer)
             {
                 Material rendererMat;
